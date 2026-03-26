@@ -44,6 +44,13 @@
 
 <br>
 
+## 작업 루트
+
+- 이 저장소의 표준 작업 루트는 `/Users/sangjeongkim/dev/doodleland` 입니다.
+- 하위의 `doodleland/` 디렉터리는 중복 템플릿 흔적으로 간주하고, 초기 셋팅/기능 개발은 루트 프로젝트 기준으로 진행합니다.
+
+<br>
+
 ## 라이선스
 
 MIT License
