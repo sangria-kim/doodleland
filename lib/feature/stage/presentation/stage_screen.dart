@@ -267,7 +267,7 @@ class _InteractivePlacedCharacter extends StatefulWidget {
 }
 
 class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const double _cardSize = 120;
 
   late final AnimationController _entryController;
