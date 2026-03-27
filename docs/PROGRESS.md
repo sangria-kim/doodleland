@@ -31,6 +31,10 @@
 
 ### 2026-03-27
 
+#### fix: restore stage motion and placement references (`commit: 078febc`)
+- `stage_screen`에서 누락된 모델 임포트로 인한 컴파일 실패를 수정해 무대 렌더링 경로의 타입 해석을 복구했습니다.
+- 캐릭터 선택 모달의 motion 상태 참조를 현재 타입에 맞춰 정정해 화면 진입 시 런타임 예외 가능성을 줄였습니다.
+
 #### feat: add stage background selection and start guard (`commit: 7a824ae`)
 - 배경 선택 화면(5종/groundY 메타)과 홈의 놀이 시작 가이드를 연결해 시작 플로우를 완성했습니다.
 - 선택된 배경을 무대 상태로 반영하고 변경 액션까지 포함해 무대 진입 UX를 이어붙였습니다.
