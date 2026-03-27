@@ -37,14 +37,17 @@ class SaveCharacterUseCase {
     final storagePaths = await _characterStoragePathFactory.create();
     final originalImagePath = await storagePaths.originalImagePath();
     final transparentImagePath = await storagePaths.transparentImagePath();
-    final thumbnailPath = await storagePaths.thumbnailImagePath(extension: 'jpg');
+    final thumbnailPath = await storagePaths.thumbnailImagePath();
 
     await source.copy(originalImagePath);
     final removalResult = await _backgroundRemover.removeBackground(
       sourceImagePath: sourceImagePath,
       destinationImagePath: transparentImagePath,
     );
-    await source.copy(thumbnailPath);
+    await _saveThumbnailImage(
+      sourceImage: decodedImage,
+      destinationImagePath: thumbnailPath,
+    );
 
     final savedId = await _characterRepository.saveCharacter(
       name: '그림 ${DateTime.now().toIso8601String()}',
@@ -58,6 +61,16 @@ class SaveCharacterUseCase {
     return SaveCharacterResult(
       characterId: savedId,
       qualityWarningMessage: removalResult.qualityWarningMessage,
+    );
+  }
+
+  Future<void> _saveThumbnailImage({
+    required image.Image sourceImage,
+    required String destinationImagePath,
+  }) async {
+    final resizedImage = image.copyResize(sourceImage, width: 200);
+    await File(destinationImagePath).writeAsBytes(
+      image.encodePng(resizedImage),
     );
   }
 }

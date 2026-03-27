@@ -31,7 +31,7 @@ class CharacterDao extends DatabaseAccessor<AppDatabase> {
 
   Future<List<Character>> getAllCharacters() {
     final query = _database.select(_database.characters)
-      ..orderBy([(character) => OrderingTerm.asc(character.createdAt)]);
+      ..orderBy([(character) => OrderingTerm.desc(character.createdAt)]);
     return query.get();
   }
 
