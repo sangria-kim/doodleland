@@ -179,6 +179,73 @@ void main() {
     expect(remaining.length, equals(1));
     expect(remaining.any((character) => character.instanceId == targetId), isFalse);
   });
+
+  test('applies tap, drag, and remove transitions for placed characters', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final vm = container.read(stageViewModelProvider.notifier);
+    await vm.placeCharacter(
+      character: Character(
+        id: 15,
+        name: 'sample-1',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+    await vm.placeCharacter(
+      character: Character(
+        id: 16,
+        name: 'sample-2',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+
+    final ids = container.read(stageViewModelProvider).placedCharacters.map((item) {
+      return item.instanceId;
+    }).toList(growable: false);
+    final tappedId = ids[0];
+    final removedId = ids[1];
+
+    vm.bringCharacterToFront(tappedId);
+    expect(
+      container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .firstWhere((character) => character.instanceId == tappedId)
+          .zIndex,
+      equals(2),
+    );
+
+    final moved = vm.updateCharacterPosition(
+      instanceId: tappedId,
+      position: const Offset(1.9, -0.1),
+    );
+    expect(moved, isTrue);
+    final tappedAfterMove = container
+        .read(stageViewModelProvider)
+        .placedCharacters
+        .firstWhere((character) => character.instanceId == tappedId);
+    expect(tappedAfterMove.position.dx, equals(1.0));
+    expect(tappedAfterMove.position.dy, equals(0.0));
+
+    final removed = vm.removeCharacter(removedId);
+    expect(removed, isTrue);
+    final remaining = container.read(stageViewModelProvider).placedCharacters;
+    expect(remaining.length, equals(1));
+    expect(remaining.first.instanceId, equals(tappedId));
+  });
 }
 
 class _FakePlaceCharacterUseCase extends PlaceCharacterUseCase {

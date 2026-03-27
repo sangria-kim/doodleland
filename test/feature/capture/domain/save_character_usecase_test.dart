@@ -143,4 +143,17 @@ void main() {
     expect(result.qualityWarningMessage, isNotNull);
     expect(result.qualityWarningMessage, isNotEmpty);
   });
+
+  test('throws when source image is missing', () async {
+    final repository = FakeCharacterRepository();
+    final useCase = SaveCharacterUseCase(
+      characterRepository: repository,
+      characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
+    );
+
+    await expectLater(
+      () => useCase.call(sourceImagePath: '${tempDirectory.path}/not-found.png'),
+      throwsA(isA<StateError>()),
+    );
+  });
 }
