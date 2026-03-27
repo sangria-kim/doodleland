@@ -31,6 +31,11 @@
 
 ### 2026-03-28
 
+#### feat: add stage character motion playback (`commit: 2829e26`)
+- 캐릭터 배치 후 선택한 모션 프리셋이 무대에서 자동으로 재생되도록 애니메이션 경로를 연결했습니다.
+- 드래그/탭 인터랙션 시 모션을 일시 정지했다가 종료 후 자연스럽게 다시 재개되도록 반응 흐름을 정리했습니다.
+- 무대 상호작용 상태 변화가 애니메이션과 충돌하지 않도록 업데이트 경로를 정합했습니다.
+
 #### fix: prevent stage placement ticker overflow crash (`commit: f062ded`)
 - 무대 캐릭터 배치 시 다중 AnimationController 사용으로 발생하던 ticker provider 크래시를 수정했습니다.
 - 배치 위젯의 ticker provider 믹스인을 다중 컨트롤러에 맞게 조정해 캐릭터 추가/탭 애니메이션이 안정적으로 동작하도록 개선했습니다.
