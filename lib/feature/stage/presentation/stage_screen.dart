@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../domain/model/placed_character.dart';
+import '../domain/model/motion_preset.dart';
 import 'stage_viewmodel.dart';
 import 'widget/character_selector.dart';
 

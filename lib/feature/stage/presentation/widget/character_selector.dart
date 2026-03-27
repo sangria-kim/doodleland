@@ -189,7 +189,7 @@ class _MotionSelectionSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             MotionSelector(
-              selectedMotion: state.motion,
+              selectedMotion: state,
               onChanged: (motion) {
                 ref.read(characterSelectorSheetControllerProvider.notifier).selectMotion(
                   motion,
@@ -214,7 +214,7 @@ class _MotionSelectionSheet extends StatelessWidget {
                       Navigator.of(context).pop(
                         CharacterPlacementSelection(
                           character: character,
-                          motion: state.motion,
+                          motion: state,
                         ),
                       );
                     },
@@ -233,8 +233,6 @@ class _MotionSelectionSheet extends StatelessWidget {
 class CharacterSelectorSheetState extends StateNotifier<MotionPreset> {
   CharacterSelectorSheetState() : super(MotionPreset.floating);
 
-  MotionPreset get motion => state;
-
   void selectMotion(MotionPreset motion) {
     state = motion;
   }
@@ -244,7 +242,6 @@ final characterSelectorSheetControllerProvider =
     StateNotifierProvider<CharacterSelectorSheetState, MotionPreset>(
       (ref) => CharacterSelectorSheetState(),
     );
-}
 
 class _CharacterCard extends StatelessWidget {
   const _CharacterCard({
