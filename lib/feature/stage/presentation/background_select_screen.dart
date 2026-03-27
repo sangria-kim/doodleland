@@ -114,7 +114,7 @@ class _BackgroundCard extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Text(
-                    '${background.name} (groundY: ${background.groundY.toStringAsFixed(2)})',
+                    background.name,
                     style: const TextStyle(color: Colors.white),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

@@ -19,31 +19,31 @@ const List<StageBackground> defaultStageBackgrounds = [
   StageBackground(
     id: 'forest',
     name: '숲',
-    assetPath: 'assets/backgrounds/forest.png',
+    assetPath: 'assets/backgrounds/bg_forest.jpg',
     groundY: 0.86,
   ),
   StageBackground(
     id: 'sky',
     name: '푸른 하늘',
-    assetPath: 'assets/backgrounds/sky.png',
+    assetPath: 'assets/backgrounds/bg_sky.jpg',
     groundY: 0.84,
   ),
   StageBackground(
     id: 'ocean',
     name: '바다',
-    assetPath: 'assets/backgrounds/ocean.png',
+    assetPath: 'assets/backgrounds/bg_ocean.jpg',
     groundY: 0.81,
   ),
   StageBackground(
     id: 'starry_night',
     name: '별빛 밤',
-    assetPath: 'assets/backgrounds/starry_night.png',
+    assetPath: 'assets/backgrounds/bg_starry_night.jpg',
     groundY: 0.83,
   ),
   StageBackground(
     id: 'candy_land',
     name: '캔디 랜드',
-    assetPath: 'assets/backgrounds/candy_land.png',
+    assetPath: 'assets/backgrounds/bg_candy_land.jpg',
     groundY: 0.88,
   ),
 ];
