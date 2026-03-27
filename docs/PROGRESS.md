@@ -32,6 +32,11 @@
 
 ### 2026-03-27
 
+#### docs: log feature-first skeleton merge (`commit: dcadb81`)
+- squash merge 후 AGENTS 규칙에 따라 1-1 적용 결과를 PROGRESS 진행률/현재 상태에 반영했습니다.
+- 커밋 기준 이력의 최신성을 보장하도록 현재 작업 상태를 최신 순으로 갱신했습니다.
+- 이어지는 기능 브랜치 계획(1-2) 진입점을 문맥상 명시했습니다.
+
 #### feat: materialize feature-first app skeleton (`commit: 83e261e`)
 - feature-first 디렉터리와 캡처/라이브러리/스테이지 모듈 골격을 연결해 라우팅 대상 화면을 실제 클래스로 정리했습니다.
 - 홈 화면 테마 토큰을 도입하고 공통 버튼/간격 기준을 적용해 기본 UX 스타일을 정비했습니다.
