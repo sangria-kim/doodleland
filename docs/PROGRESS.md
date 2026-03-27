@@ -31,6 +31,11 @@
 
 ### 2026-03-28
 
+#### ui: expand stage to full screen immersive (`commit: 3c4f8d2`)
+- 배경과 캐릭터 이동 가능한 무대 영역을 시스템 바까지 포함한 전체화면으로 확장했습니다.
+- 상단 앱바를 제거하고 오버레이 헤더를 유지해 조작은 그대로 둔 채 화면 경계 충돌을 해소했습니다.
+- `stage_screen`에서 상태바/네비게이션바 숨김을 적용해 무대 체감 영역을 최대로 확보했습니다.
+
 #### fix: restore stage background rendering with jpg assets (`commit: cfd7c79`)
 - 무대 배경 선택 후 이미지가 보이지 않던 문제를 새 `bg_*.jpg` 자산 경로로 정리해 해결했습니다.
 - 배경 선택 카드에서 내부 기준값(`groundY`) 노출을 제거해 사용자 라벨을 간결하게 정리했습니다.
