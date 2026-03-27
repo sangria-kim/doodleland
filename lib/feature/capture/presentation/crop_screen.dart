@@ -27,18 +27,40 @@ class _CropScreenState extends ConsumerState<CropScreen> {
 
   Future<void> _runCrop() async {
     if (_isWorking || widget.sourceImagePath.isEmpty) return;
+    if (!File(widget.sourceImagePath).existsSync()) return;
+
     _isWorking = true;
-    final result = await ref
-        .read(captureViewModelProvider.notifier)
-        .cropImage(widget.sourceImagePath);
-    if (!mounted) return;
-    _isWorking = false;
-    if (result == null) {
-      context.go('/capture');
-      return;
+    final croppedPath = ref.read(captureViewModelProvider).selectedImagePath;
+
+    try {
+      if (ref.read(captureViewModelProvider).isBusy) return;
+
+      final result = await ref
+          .read(captureViewModelProvider.notifier)
+          .cropImage(widget.sourceImagePath);
+      if (!mounted) {
+        return;
+      }
+
+      if (result == null) {
+        final currentState = ref.read(captureViewModelProvider);
+        if (currentState.feedbackMessage == '이미지 크롭이 취소되었습니다.') {
+          context.go('/capture');
+        } else if (currentState.feedbackMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(currentState.feedbackMessage!)),
+          );
+        }
+        return;
+      }
+
+      if (result == croppedPath) {
+        ref.read(captureViewModelProvider.notifier).clearFeedback();
+      }
+      context.push('/capture/preview', extra: result);
+    } finally {
+      _isWorking = false;
     }
-    ref.read(captureViewModelProvider.notifier).clearFeedback();
-    context.push('/capture/preview', extra: result);
   }
 
   @override
@@ -104,7 +126,9 @@ class _CropScreenState extends ConsumerState<CropScreen> {
                   SizedBox(
                     height: buttonHeight,
                     child: FilledButton(
-                      onPressed: sourceExists ? () => _runCrop() : null,
+                      onPressed: sourceExists && !state.isBusy && !_isWorking
+                          ? () => _runCrop()
+                          : null,
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(1),
                         textStyle: TextStyle(
