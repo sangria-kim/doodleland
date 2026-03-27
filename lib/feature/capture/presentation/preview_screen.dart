@@ -22,18 +22,20 @@ class PreviewScreen extends ConsumerWidget {
       required bool moveToCapture,
     }) async {
       if (state.isBusy) return;
-      final savedId = await ref
+      final savedResult = await ref
           .read(captureViewModelProvider.notifier)
           .saveCurrentImage(previewImagePath);
       if (!context.mounted) return;
-      if (savedId == null) {
+      if (savedResult == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(state.feedbackMessage ?? '저장 실패')),
         );
         return;
       }
+      final warningMessage = savedResult.qualityWarningMessage;
+      final suffix = warningMessage == null ? '' : ' ($warningMessage)';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label 완료 (${savedId})')),
+        SnackBar(content: Text('$label 완료 (${savedResult.characterId})$suffix')),
       );
       if (moveToCapture) {
         context.go('/capture');

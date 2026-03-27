@@ -122,14 +122,19 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
     }
   }
 
-  Future<int?> saveCurrentImage(String imagePath) async {
+  Future<SaveCharacterResult?> saveCurrentImage(String imagePath) async {
     if (state.isBusy) return null;
-    state = state.copyWith(isBusy: true, feedbackMessage: null);
 
+    state = state.copyWith(isBusy: true, feedbackMessage: null);
     try {
-      final savedId = await _saveCharacterUseCase(sourceImagePath: imagePath);
-      state = state.copyWith(isBusy: false, selectedImagePath: imagePath, lastSavedId: savedId);
-      return savedId;
+      final result = await _saveCharacterUseCase(sourceImagePath: imagePath);
+      state = state.copyWith(
+        isBusy: false,
+        selectedImagePath: imagePath,
+        lastSavedId: result.characterId,
+        feedbackMessage: result.qualityWarningMessage,
+      );
+      return result;
     } catch (error) {
       state = state.copyWith(
         isBusy: false,

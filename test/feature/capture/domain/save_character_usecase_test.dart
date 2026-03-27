@@ -71,6 +71,16 @@ void main() {
   setUp(() async {
     tempDirectory = await Directory.systemTemp.createTemp('capture-usecase');
     final source = img.Image(width: 16, height: 9);
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        source.setPixelRgba(x, y, 255, 255, 255, 255);
+      }
+    }
+    for (var y = 4; y < 7; y++) {
+      for (var x = 5; x < 11; x++) {
+        source.setPixelRgba(x, y, 10, 10, 10, 255);
+      }
+    }
     final imageBytes = img.encodePng(source);
     sourceImagePath = '${tempDirectory.path}/source.png';
     await File(sourceImagePath).writeAsBytes(imageBytes);
@@ -89,10 +99,11 @@ void main() {
       characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
     );
 
-    final savedId = await useCase.call(sourceImagePath: sourceImagePath);
+    final result = await useCase.call(sourceImagePath: sourceImagePath);
 
     final savedCharacters = await repository.getCharacters();
-    expect(savedId, 1);
+    expect(result.characterId, 1);
+    expect(result.qualityWarningMessage, isNull);
     expect(savedCharacters, hasLength(1));
     expect(savedCharacters.first.width, 16);
     expect(savedCharacters.first.height, 9);
@@ -108,5 +119,28 @@ void main() {
       await File(savedCharacters.first.thumbnailPath).exists(),
       isTrue,
     );
+  });
+
+  test('returns warning when background is mostly transparent after removal', () async {
+    final whiteBackground = img.Image(width: 10, height: 10);
+    for (var y = 0; y < whiteBackground.height; y++) {
+      for (var x = 0; x < whiteBackground.width; x++) {
+        whiteBackground.setPixelRgba(x, y, 255, 255, 255, 255);
+      }
+    }
+    final source = File('${tempDirectory.path}/white.png');
+    await source.writeAsBytes(img.encodePng(whiteBackground));
+
+    final repository = FakeCharacterRepository();
+    final useCase = SaveCharacterUseCase(
+      characterRepository: repository,
+      characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
+    );
+
+    final result = await useCase.call(sourceImagePath: source.path);
+
+    expect(result.characterId, 1);
+    expect(result.qualityWarningMessage, isNotNull);
+    expect(result.qualityWarningMessage, isNotEmpty);
   });
 }
