@@ -31,6 +31,10 @@
 
 ### 2026-03-27
 
+#### fix: wrap widget test app with provider scope (`commit: 52929e1`)
+- 기본 위젯 테스트에서 ProviderScope 미설정으로 앱 렌더링이 중단되던 예외를 해결했습니다.
+- 회귀 테스트 실행 경로에서 DoodlelandApp을 ProviderScope로 감싸 안정적으로 통합 테스트가 종료되도록 조정했습니다.
+
 #### fix: restore stage motion and placement references (`commit: 078febc`)
 - `stage_screen`에서 누락된 모델 임포트로 인한 컴파일 실패를 수정해 무대 렌더링 경로의 타입 해석을 복구했습니다.
 - 캐릭터 선택 모달의 motion 상태 참조를 현재 타입에 맞춰 정정해 화면 진입 시 런타임 예외 가능성을 줄였습니다.
