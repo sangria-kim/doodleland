@@ -20,11 +20,18 @@ class AppRouter {
       ),
       GoRoute(
         path: '/capture/crop',
-        builder: (context, state) => const CropScreen(),
+        builder: (context, state) {
+          final sourceImagePath =
+              state.extra is String ? state.extra as String : '';
+          return CropScreen(sourceImagePath: sourceImagePath);
+        },
       ),
       GoRoute(
         path: '/capture/preview',
-        builder: (context, state) => const PreviewScreen(),
+        builder: (context, state) {
+          final previewImagePath = state.extra is String ? state.extra as String : '';
+          return PreviewScreen(previewImagePath: previewImagePath);
+        },
       ),
       GoRoute(
         path: '/stage/background',

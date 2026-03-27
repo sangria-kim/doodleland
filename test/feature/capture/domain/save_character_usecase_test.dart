@@ -1,0 +1,112 @@
+import 'dart:io';
+
+import 'package:doodleland/core/database/app_database.dart';
+import 'package:doodleland/core/storage/character_storage_paths.dart';
+import 'package:doodleland/feature/capture/domain/save_character_usecase.dart';
+import 'package:doodleland/feature/library/data/character_repository.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+
+class FakeCharacterRepository implements CharacterRepository {
+  FakeCharacterRepository();
+
+  final List<Character> _characters = [];
+  int _nextId = 1;
+
+  @override
+  Future<List<Character>> getCharacters() async => List.unmodifiable(_characters);
+
+  @override
+  Future<Character> getCharacterById(int id) async {
+    return _characters.firstWhere((character) => character.id == id);
+  }
+
+  @override
+  Future<int> saveCharacter({
+    required String name,
+    required String originalImagePath,
+    required String transparentImagePath,
+    required String thumbnailPath,
+    required int width,
+    required int height,
+  }) async {
+    final next = _nextId++;
+    final character = Character(
+      id: next,
+      name: name,
+      originalImagePath: originalImagePath,
+      transparentImagePath: transparentImagePath,
+      thumbnailPath: thumbnailPath,
+      width: width,
+      height: height,
+      createdAt: DateTime.now(),
+    );
+    _characters.add(character);
+    return next;
+  }
+
+  @override
+  Future<bool> removeCharacter(int id) async {
+    final before = _characters.length;
+    _characters.removeWhere((character) => character.id == id);
+    return _characters.length < before;
+  }
+}
+
+class TestStoragePathFactory extends CharacterStoragePathFactory {
+  TestStoragePathFactory(this.baseDirectory);
+
+  final Directory baseDirectory;
+
+  @override
+  Future<CharacterStoragePaths> create() async {
+    return CharacterStoragePaths(baseDirectory: baseDirectory, rootDirectoryName: 'capture');
+  }
+}
+
+void main() {
+  late Directory tempDirectory;
+  late String sourceImagePath;
+
+  setUp(() async {
+    tempDirectory = await Directory.systemTemp.createTemp('capture-usecase');
+    final source = img.Image(width: 16, height: 9);
+    final imageBytes = img.encodePng(source);
+    sourceImagePath = '${tempDirectory.path}/source.png';
+    await File(sourceImagePath).writeAsBytes(imageBytes);
+  });
+
+  tearDown(() async {
+    if (await tempDirectory.exists()) {
+      await tempDirectory.delete(recursive: true);
+    }
+  });
+
+  test('save usecase copies source image and inserts repository row', () async {
+    final repository = FakeCharacterRepository();
+    final useCase = SaveCharacterUseCase(
+      characterRepository: repository,
+      characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
+    );
+
+    final savedId = await useCase.call(sourceImagePath: sourceImagePath);
+
+    final savedCharacters = await repository.getCharacters();
+    expect(savedId, 1);
+    expect(savedCharacters, hasLength(1));
+    expect(savedCharacters.first.width, 16);
+    expect(savedCharacters.first.height, 9);
+    expect(
+      await File(savedCharacters.first.originalImagePath).exists(),
+      isTrue,
+    );
+    expect(
+      await File(savedCharacters.first.transparentImagePath).exists(),
+      isTrue,
+    );
+    expect(
+      await File(savedCharacters.first.thumbnailPath).exists(),
+      isTrue,
+    );
+  });
+}
