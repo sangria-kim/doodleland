@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -26,7 +27,14 @@ class _StageScreenState extends ConsumerState<StageScreen> {
   Timer? _controlTimer;
 
   @override
+  void initState() {
+    super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
   void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _controlTimer?.cancel();
     super.dispose();
   }
@@ -54,101 +62,121 @@ class _StageScreenState extends ConsumerState<StageScreen> {
     final state = ref.watch(stageViewModelProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('무대'),
-        leading: IconButton(
-          onPressed: () => context.go('/'),
-          icon: const Icon(Icons.arrow_back),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => context.go('/stage/background'),
-            icon: const Icon(Icons.image),
-            tooltip: '배경 바꾸기',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.black,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final topPadding = MediaQuery.of(context).padding.top;
+          final horizontalPadding = 16.0;
+          return Stack(
             children: [
-              Text(
-                '무대에 배치된 캐릭터: ${state.placedCharacters.length} / 10',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              if (state.errorMessage != null)
-                Card(
-                  color: Colors.red.shade50,
-                  child: ListTile(
-                    leading: const Icon(Icons.warning_amber_outlined),
-                    title: Text(state.errorMessage!),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: ref.read(stageViewModelProvider.notifier).clearError,
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showControlsForAWhile,
+                onPanDown: (_) => _showControlsForAWhile(),
+                child: Container(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(state.selectedBackground.assetPath),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.bottomCenter,
                     ),
                   ),
+                  child: state.placedCharacters.isEmpty
+                      ? _EmptyStageHint()
+                      : _PlacedCharactersStage(
+                          placedCharacters: state.placedCharacters,
+                          stageSize: constraints.biggest,
+                          onInteraction: _showControlsForAWhile,
+                          onBringToFront: (instanceId) {
+                            ref
+                                .read(stageViewModelProvider.notifier)
+                                .bringCharacterToFront(instanceId);
+                          },
+                          onMove: (instanceId, position) {
+                            ref
+                                .read(stageViewModelProvider.notifier)
+                                .updateCharacterPosition(
+                                  instanceId: instanceId,
+                                  position: position,
+                                );
+                          },
+                          onDelete: (instanceId) async {
+                            final removed = ref
+                                .read(stageViewModelProvider.notifier)
+                                .removeCharacter(instanceId);
+
+                            if (context.mounted) {
+                              final message = removed
+                                  ? '무대에서 제거했어요.'
+                                  : '제거하지 못했어요.';
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(message)),
+                              );
+                            }
+                          },
+                        ),
                 ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _showControlsForAWhile,
-                      onPanDown: (_) => _showControlsForAWhile(),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage(state.selectedBackground.assetPath),
-                            fit: BoxFit.cover,
-                            alignment: Alignment.bottomCenter,
+              ),
+              Positioned(
+                left: horizontalPadding,
+                right: horizontalPadding,
+                top: topPadding + 12,
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => context.go('/'),
+                      icon: const Icon(Icons.arrow_back),
+                      color: Colors.white,
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => context.go('/stage/background'),
+                      icon: const Icon(Icons.image),
+                      color: Colors.white,
+                      tooltip: '배경 바꾸기',
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: horizontalPadding,
+                right: horizontalPadding,
+                top: topPadding + 64,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '무대에 배치된 캐릭터: ${state.placedCharacters.length} / 10',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            shadows: const [
+                              Shadow(color: Colors.black54, blurRadius: 2),
+                            ],
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (state.errorMessage != null)
+                      Card(
+                        color: Colors.red.shade50,
+                        margin: EdgeInsets.zero,
+                        child: ListTile(
+                          leading: const Icon(Icons.warning_amber_outlined),
+                          title: Text(state.errorMessage!),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed:
+                                ref.read(stageViewModelProvider.notifier).clearError,
                           ),
                         ),
-                        child: state.placedCharacters.isEmpty
-                            ? _EmptyStageHint()
-                            : _PlacedCharactersStage(
-                                placedCharacters: state.placedCharacters,
-                                stageSize: constraints.biggest,
-                                onInteraction: _showControlsForAWhile,
-                                onBringToFront: (instanceId) {
-                                  ref
-                                      .read(stageViewModelProvider.notifier)
-                                      .bringCharacterToFront(instanceId);
-                                },
-                                onMove: (instanceId, position) {
-                                  ref
-                                      .read(stageViewModelProvider.notifier)
-                                      .updateCharacterPosition(
-                                        instanceId: instanceId,
-                                        position: position,
-                                      );
-                                },
-                                onDelete: (instanceId) async {
-                                  final removed = ref
-                                      .read(stageViewModelProvider.notifier)
-                                      .removeCharacter(instanceId);
-
-                                  if (context.mounted) {
-                                    final message = removed
-                                        ? '무대에서 제거했어요.'
-                                        : '제거하지 못했어요.';
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(message)),
-                                    );
-                                  }
-                                },
-                              ),
                       ),
-                    );
-                  },
+                  ],
                 ),
               ),
             ],
-          ),
-        ),
+          );
+        },
       ),
       floatingActionButton: IgnorePointer(
         ignoring: !_showControls,
@@ -271,8 +299,6 @@ class _InteractivePlacedCharacter extends StatefulWidget {
 
 class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter>
     with TickerProviderStateMixin {
-  static const double _cardSize = 120;
-
   late final AnimationController _entryController;
   late final Animation<double> _entryScale;
   late final AnimationController _bounceController;
@@ -429,20 +455,9 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
   }
 
   Offset _clampPosition(Offset position) {
-    final halfNormalizedX = widget.stageSize.width <= _cardSize
-        ? 0.5
-        : _cardSize / widget.stageSize.width / 2;
-    final halfNormalizedY = widget.stageSize.height <= _cardSize
-        ? 0.5
-        : _cardSize / widget.stageSize.height / 2;
-    final safeLeft = halfNormalizedX.clamp(0.0, 0.5);
-    final safeRight = (1.0 - halfNormalizedX).clamp(0.5, 1.0);
-    final safeTop = halfNormalizedY.clamp(0.0, 0.5);
-    final safeBottom = (1.0 - halfNormalizedY).clamp(0.5, 1.0);
-
     return Offset(
-      position.dx.clamp(safeLeft, safeRight),
-      position.dy.clamp(safeTop, safeBottom),
+      position.dx.clamp(0.0, 1.0),
+      position.dy.clamp(0.0, 1.0),
     );
   }
 
@@ -532,7 +547,7 @@ class _PlacedCharacterBubble extends StatelessWidget {
             Image.file(
               File(placed.transparentImagePath),
               fit: BoxFit.cover,
-              errorBuilder: (context, _, __) => const Center(
+              errorBuilder: (context, error, stackTrace) => const Center(
                 child: Icon(Icons.image_not_supported),
               ),
             ),
@@ -559,7 +574,7 @@ class _PlacedCharacterInfo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Text(
