@@ -31,6 +31,10 @@
 
 ### 2026-03-27
 
+#### feat: add staged character entry baseline and animation (`commit: 16615be`)
+- 캐릭터 추가 시 선택된 배경의 groundY 기준 위치로 배치 좌표를 계산해 시작점을 정교화했습니다.
+- 무대 진입 애니메이션을 scale 0→1.2→1.0 시퀀스로 적용해 기본 등장 루프 동작을 추가했습니다.
+
 #### fix: wrap widget test app with provider scope (`commit: 52929e1`)
 - 기본 위젯 테스트에서 ProviderScope 미설정으로 앱 렌더링이 중단되던 예외를 해결했습니다.
 - 회귀 테스트 실행 경로에서 DoodlelandApp을 ProviderScope로 감싸 안정적으로 통합 테스트가 종료되도록 조정했습니다.
