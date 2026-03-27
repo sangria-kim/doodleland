@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:doodleland/feature/stage/presentation/stage_viewmodel.dart';
 import 'package:doodleland/feature/stage/domain/model/motion_preset.dart';
 import 'package:doodleland/feature/stage/domain/model/stage_background.dart';
@@ -64,6 +66,118 @@ void main() {
     expect(isAdded, isTrue);
     expect(fakeUseCase.capturedGroundY, equals(selectedBackground.groundY));
     expect(container.read(stageViewModelProvider).placedCharacters.single.position.dy, equals(0.86));
+  });
+
+  test('updates character position and clamps to normalized bounds', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final vm = container.read(stageViewModelProvider.notifier);
+    await vm.placeCharacter(
+      character: Character(
+        id: 10,
+        name: 'sample',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+
+    final targetId = container.read(stageViewModelProvider).placedCharacters.single.instanceId;
+    final moved = vm.updateCharacterPosition(
+      instanceId: targetId,
+      position: const Offset(1.7, -0.2),
+    );
+
+    expect(moved, isTrue);
+    final updated = container.read(stageViewModelProvider).placedCharacters.single;
+    expect(updated.position.dx, equals(1.0));
+    expect(updated.position.dy, equals(0.0));
+  });
+
+  test('brings character to front by increasing zIndex', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final vm = container.read(stageViewModelProvider.notifier);
+    await vm.placeCharacter(
+      character: Character(
+        id: 11,
+        name: 'sample-1',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+    await vm.placeCharacter(
+      character: Character(
+        id: 12,
+        name: 'sample-2',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+
+    final firstId = container.read(stageViewModelProvider).placedCharacters.first.instanceId;
+    vm.bringCharacterToFront(firstId);
+
+    final updated = container.read(stageViewModelProvider).placedCharacters;
+    final frontCharacter = updated.firstWhere((character) => character.instanceId == firstId);
+    expect(frontCharacter.zIndex, equals(2));
+  });
+
+  test('removes a character by instanceId', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final vm = container.read(stageViewModelProvider.notifier);
+    await vm.placeCharacter(
+      character: Character(
+        id: 13,
+        name: 'sample-1',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+    await vm.placeCharacter(
+      character: Character(
+        id: 14,
+        name: 'sample-2',
+        originalImagePath: '/tmp/original.png',
+        transparentImagePath: '/tmp/transparent.png',
+        thumbnailPath: '/tmp/thumbnail.png',
+        width: 32,
+        height: 32,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+      motionPreset: MotionPreset.floating,
+    );
+
+    final targetId = container.read(stageViewModelProvider).placedCharacters.first.instanceId;
+    final removed = vm.removeCharacter(targetId);
+    final remaining = container.read(stageViewModelProvider).placedCharacters;
+
+    expect(removed, isTrue);
+    expect(remaining.length, equals(1));
+    expect(remaining.any((character) => character.instanceId == targetId), isFalse);
   });
 }
 

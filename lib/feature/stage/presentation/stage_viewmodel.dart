@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,6 +69,66 @@ class StageViewModel extends StateNotifier<StageState> {
       placedCharacters: [...state.placedCharacters, placedCharacter],
       errorMessage: null,
     );
+    return true;
+  }
+
+  bool updateCharacterPosition({
+    required String instanceId,
+    required Offset position,
+  }) {
+    final index = state.placedCharacters.indexWhere(
+      (character) => character.instanceId == instanceId,
+    );
+    if (index == -1) {
+      return false;
+    }
+
+    final clampedPosition = Offset(
+      position.dx.clamp(0.0, 1.0),
+      position.dy.clamp(0.0, 1.0),
+    );
+
+    final placed = state.placedCharacters[index];
+    final updated = placed.copyWith(position: clampedPosition);
+    final nextCharacters = [...state.placedCharacters];
+    nextCharacters[index] = updated;
+
+    state = state.copyWith(placedCharacters: nextCharacters, errorMessage: null);
+    return true;
+  }
+
+  void bringCharacterToFront(String instanceId) {
+    final index = state.placedCharacters.indexWhere(
+      (character) => character.instanceId == instanceId,
+    );
+    if (index == -1) {
+      return;
+    }
+
+    final maxZIndex = state.placedCharacters.fold<int>(
+      0,
+      (acc, item) => item.zIndex > acc ? item.zIndex : acc,
+    );
+    final placed = state.placedCharacters[index];
+    final updated = placed.copyWith(zIndex: maxZIndex + 1);
+    final nextCharacters = [...state.placedCharacters];
+    nextCharacters[index] = updated;
+
+    state = state.copyWith(placedCharacters: nextCharacters, errorMessage: null);
+  }
+
+  bool removeCharacter(String instanceId) {
+    final found = state.placedCharacters.any(
+      (character) => character.instanceId == instanceId,
+    );
+    if (!found) {
+      return false;
+    }
+
+    final remaining = state.placedCharacters
+        .where((character) => character.instanceId != instanceId)
+        .toList(growable: false);
+    state = state.copyWith(placedCharacters: remaining, errorMessage: null);
     return true;
   }
 

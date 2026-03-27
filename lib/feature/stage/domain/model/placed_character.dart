@@ -30,4 +30,30 @@ class PlacedCharacter {
   final Offset position;
   final double scale;
   final int zIndex;
+
+  PlacedCharacter copyWith({
+    String? instanceId,
+    int? characterId,
+    String? characterName,
+    String? transparentImagePath,
+    String? thumbnailPath,
+    MotionPreset? motionPreset,
+    TouchPreset? touchPreset,
+    Offset? position,
+    double? scale,
+    int? zIndex,
+  }) {
+    return PlacedCharacter(
+      instanceId: instanceId ?? this.instanceId,
+      characterId: characterId ?? this.characterId,
+      characterName: characterName ?? this.characterName,
+      transparentImagePath: transparentImagePath ?? this.transparentImagePath,
+      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      motionPreset: motionPreset ?? this.motionPreset,
+      touchPreset: touchPreset ?? this.touchPreset,
+      position: position ?? this.position,
+      scale: scale ?? this.scale,
+      zIndex: zIndex ?? this.zIndex,
+    );
+  }
 }
