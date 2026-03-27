@@ -30,7 +30,6 @@ class _CropScreenState extends ConsumerState<CropScreen> {
     if (!File(widget.sourceImagePath).existsSync()) return;
 
     _isWorking = true;
-    final croppedPath = ref.read(captureViewModelProvider).selectedImagePath;
 
     try {
       if (ref.read(captureViewModelProvider).isBusy) return;
@@ -54,9 +53,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
         return;
       }
 
-      if (result == croppedPath) {
-        ref.read(captureViewModelProvider.notifier).clearFeedback();
-      }
+      ref.read(captureViewModelProvider.notifier).clearFeedback();
       context.push('/capture/preview', extra: result);
     } finally {
       _isWorking = false;
