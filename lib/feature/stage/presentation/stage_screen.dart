@@ -65,11 +65,9 @@ class StageScreen extends ConsumerWidget {
                       alignment: Alignment.bottomCenter,
                     ),
                   ),
-                  child: state.placedCharacters.isEmpty
-                      ? _EmptyStageHint()
-                      : _PlacedCharactersGrid(
-                          placedCharacters: state.placedCharacters,
-                        ),
+              child: state.placedCharacters.isEmpty
+                    ? _EmptyStageHint()
+                    : _PlacedCharactersStage(placedCharacters: state.placedCharacters),
                 ),
               ),
             ],
@@ -125,45 +123,123 @@ class _EmptyStageHint extends StatelessWidget {
   }
 }
 
-class _PlacedCharactersGrid extends StatelessWidget {
-  const _PlacedCharactersGrid({required this.placedCharacters});
+class _PlacedCharactersStage extends StatelessWidget {
+  const _PlacedCharactersStage({required this.placedCharacters});
 
   final List<PlacedCharacter> placedCharacters;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1,
+    final sortedCharacters = [...placedCharacters]..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+
+    return Stack(
+      children: [
+        for (final placed in sortedCharacters)
+          _AppearingPlacedCharacter(placed: placed),
+      ],
+    );
+  }
+}
+
+class _AppearingPlacedCharacter extends StatefulWidget {
+  const _AppearingPlacedCharacter({required this.placed});
+
+  final PlacedCharacter placed;
+
+  @override
+  State<_AppearingPlacedCharacter> createState() =>
+      _AppearingPlacedCharacterState();
+}
+
+class _AppearingPlacedCharacterState extends State<_AppearingPlacedCharacter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 0.0,
+          end: 1.2,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 45,
       ),
-      itemCount: placedCharacters.length,
-      itemBuilder: (context, index) {
-        final placed = placedCharacters[index];
-        return Card(
-          clipBehavior: Clip.hardEdge,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.file(
-                File(placed.transparentImagePath),
-                fit: BoxFit.cover,
-                errorBuilder: (context, _, __) => const Center(
-                  child: Icon(Icons.image_not_supported),
-                ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 1.2,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 55,
+      ),
+    ]).animate(_controller);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final x = widget.placed.position.dx.clamp(0.0, 1.0);
+    final y = widget.placed.position.dy.clamp(0.0, 1.0);
+    return Align(
+      alignment: Alignment(
+        x * 2 - 1,
+        y * 2 - 1,
+      ),
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value * widget.placed.scale,
+          child: child,
+        ),
+        child: _PlacedCharacterBubble(placed: widget.placed),
+      ),
+    );
+  }
+}
+
+class _PlacedCharacterBubble extends StatelessWidget {
+  const _PlacedCharacterBubble({required this.placed});
+
+  final PlacedCharacter placed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120,
+      height: 120,
+      child: Card(
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              File(placed.transparentImagePath),
+              fit: BoxFit.cover,
+              errorBuilder: (context, _, __) => const Center(
+                child: Icon(Icons.image_not_supported),
               ),
-              Positioned(
-                left: 8,
-                right: 8,
-                bottom: 8,
-                child: _PlacedCharacterInfo(placed: placed),
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: _PlacedCharacterInfo(placed: placed),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

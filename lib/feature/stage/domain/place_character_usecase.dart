@@ -13,8 +13,10 @@ class PlaceCharacterUseCase {
   Future<PlacedCharacter> call({
     required Character character,
     required MotionPreset motionPreset,
+    double? groundY,
     int? zIndex,
   }) async {
+    final normalizedGroundY = groundY ?? 0.8;
     return PlacedCharacter(
       instanceId: '${DateTime.now().microsecondsSinceEpoch}-${character.id}',
       characterId: character.id,
@@ -23,7 +25,7 @@ class PlaceCharacterUseCase {
       thumbnailPath: character.thumbnailPath,
       motionPreset: motionPreset,
       touchPreset: TouchPreset.defaultBounce,
-      position: const Offset(0.5, 0.8),
+      position: Offset(0.5, normalizedGroundY.clamp(0.0, 1.0)),
       scale: 1.0,
       zIndex: zIndex ?? 0,
     );

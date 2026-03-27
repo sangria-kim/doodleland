@@ -59,6 +59,7 @@ class StageViewModel extends StateNotifier<StageState> {
     final placedCharacter = await _placeCharacterUseCase(
       character: character,
       motionPreset: motionPreset,
+      groundY: state.selectedBackground.groundY,
       zIndex: nextZIndex,
     );
 
