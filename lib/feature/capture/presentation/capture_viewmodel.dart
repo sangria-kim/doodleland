@@ -1,0 +1,3 @@
+class CaptureViewModel {
+  const CaptureViewModel();
+}

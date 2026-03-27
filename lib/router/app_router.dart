@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../feature/capture/presentation/capture_screen.dart';
+import '../feature/capture/presentation/crop_screen.dart';
+import '../feature/capture/presentation/preview_screen.dart';
 import '../feature/home/presentation/home_screen.dart';
+import '../feature/stage/presentation/background_select_screen.dart';
+import '../feature/stage/presentation/stage_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -12,38 +16,24 @@ class AppRouter {
       ),
       GoRoute(
         path: '/capture',
-        builder: (context, state) => const _ComingSoonScreen(title: '그림 만들기'),
+        builder: (context, state) => const CaptureScreen(),
       ),
       GoRoute(
         path: '/capture/crop',
-        builder: (context, state) => const _ComingSoonScreen(title: '크롭'),
+        builder: (context, state) => const CropScreen(),
       ),
       GoRoute(
         path: '/capture/preview',
-        builder: (context, state) => const _ComingSoonScreen(title: '미리보기'),
+        builder: (context, state) => const PreviewScreen(),
       ),
       GoRoute(
         path: '/stage/background',
-        builder: (context, state) => const _ComingSoonScreen(title: '배경 선택'),
+        builder: (context, state) => const BackgroundSelectScreen(),
       ),
       GoRoute(
         path: '/stage',
-        builder: (context, state) => const _ComingSoonScreen(title: '무대 놀이'),
+        builder: (context, state) => const StageScreen(),
       ),
     ],
   );
-}
-
-class _ComingSoonScreen extends StatelessWidget {
-  const _ComingSoonScreen({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: const Center(child: Text('초기 설정이 완료되면 이 화면이 연결됩니다.')),
-    );
-  }
 }

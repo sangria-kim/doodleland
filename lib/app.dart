@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/theme/app_theme.dart';
 import 'router/app_router.dart';
 
 class DoodlelandApp extends StatelessWidget {
@@ -10,10 +11,7 @@ class DoodlelandApp extends StatelessWidget {
     return MaterialApp.router(
       title: '그림놀이터',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF62B7A5)),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
       routerConfig: AppRouter.router,
     );
   }

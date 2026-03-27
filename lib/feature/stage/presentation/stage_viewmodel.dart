@@ -1,0 +1,3 @@
+class StageViewModel {
+  const StageViewModel();
+}

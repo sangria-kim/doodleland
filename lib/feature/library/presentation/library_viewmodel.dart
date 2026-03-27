@@ -1,0 +1,3 @@
+class LibraryViewModel {
+  const LibraryViewModel();
+}

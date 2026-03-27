@@ -1,0 +1,3 @@
+class SceneRepository {
+  const SceneRepository();
+}

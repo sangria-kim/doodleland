@@ -1,0 +1,3 @@
+class BackgroundRemover {
+  const BackgroundRemover();
+}

@@ -1,0 +1,3 @@
+class CharacterRepository {
+  const CharacterRepository();
+}

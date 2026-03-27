@@ -1,0 +1,3 @@
+class PlaceCharacterUseCase {
+  const PlaceCharacterUseCase();
+}
