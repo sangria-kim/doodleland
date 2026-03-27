@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,10 +42,15 @@ class _CharacterSelectorState extends ConsumerState<CharacterSelector> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(libraryViewModelProvider);
+    final mediaQuery = MediaQuery.of(context);
+    final sheetHeight = math.min(
+      mediaQuery.size.height * 0.9,
+      mediaQuery.size.height - mediaQuery.padding.bottom - mediaQuery.padding.top,
+    );
 
     if (state.isLoading && state.characters.isEmpty) {
-      return const SizedBox(
-        height: 220,
+      return SizedBox(
+        height: sheetHeight,
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -52,69 +58,74 @@ class _CharacterSelectorState extends ConsumerState<CharacterSelector> {
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '그림을 골라봐!',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              if (state.characters.isEmpty) ...[
-                if (state.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      state.errorMessage!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.red,
+        height: sheetHeight,
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '그림을 골라봐!',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                if (state.characters.isEmpty) ...[
+                  if (state.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        state.errorMessage!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '아직 그림이 없어요! 그림을 먼저 만들어볼까요?',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          FilledButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              context.push('/capture');
+                            },
+                            child: const Text('그림 만들기'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '아직 그림이 없어요! 그림을 먼저 만들어볼까요?',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            context.push('/capture');
-                          },
-                          child: const Text('그림 만들기'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ] else ...[
-                if (_selectedCharacter == null)
-                  Expanded(
-                    child: _CharacterSelectionList(
-                      state: state,
-                      onTap: (character) {
-                        ref
-                            .read(characterSelectorSheetControllerProvider.notifier)
-                            .selectMotion(MotionPreset.floating);
-                        setState(() {
-                          _selectedCharacter = character;
-                        });
-                      },
-                    ),
-                  )
-                else
-                  Expanded(child: _MotionSelectionSheet(character: _selectedCharacter!)),
+                ] else ...[
+                  if (_selectedCharacter == null)
+                    Expanded(
+                      child: _CharacterSelectionList(
+                        state: state,
+                        onTap: (character) {
+                          ref
+                              .read(characterSelectorSheetControllerProvider.notifier)
+                              .selectMotion(MotionPreset.floating);
+                          setState(() {
+                            _selectedCharacter = character;
+                          });
+                        },
+                      ),
+                    )
+                  else
+                    Expanded(child: _MotionSelectionSheet(character: _selectedCharacter!)),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -134,6 +145,7 @@ class _CharacterSelectionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      padding: EdgeInsets.only(bottom: AppSpacing.sectionGap),
       scrollDirection: Axis.horizontal,
       itemCount: state.characters.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -188,13 +200,18 @@ class _MotionSelectionSheet extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            MotionSelector(
-              selectedMotion: state,
-              onChanged: (motion) {
-                ref.read(characterSelectorSheetControllerProvider.notifier).selectMotion(
-                  motion,
-                );
-              },
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(right: 2),
+                child: MotionSelector(
+                  selectedMotion: state,
+                  onChanged: (motion) {
+                    ref.read(characterSelectorSheetControllerProvider.notifier).selectMotion(
+                      motion,
+                    );
+                  },
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Row(

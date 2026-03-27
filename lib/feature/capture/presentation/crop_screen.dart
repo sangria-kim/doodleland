@@ -45,44 +45,106 @@ class _CropScreenState extends ConsumerState<CropScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(captureViewModelProvider);
     final sourceExists = File(widget.sourceImagePath).existsSync();
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('이미지 크롭')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pageHorizontal,
-            vertical: AppSpacing.pageVertical,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('이미지를 자르기 화면으로 이동 중입니다.'),
-              const SizedBox(height: AppSpacing.sectionGap),
-              if (!sourceExists) ...[
-                Text('원본 이미지가 없습니다. ${widget.sourceImagePath}'),
-                const SizedBox(height: AppSpacing.sectionGap),
-              ],
-              Expanded(
-                child: sourceExists
-                    ? Image.file(
-                        File(widget.sourceImagePath),
-                        fit: BoxFit.contain,
-                      )
-                    : const Center(child: Text('선택한 이미지를 찾을 수 없습니다.')),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final mediaQuery = MediaQuery.of(context);
+            final gap = _responsiveGap(constraints.maxHeight);
+            final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
+            final buttonFont = _responsiveButtonFont(constraints.maxHeight);
+            final bodyFont = _responsiveBodySize(constraints.maxHeight);
+
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(
+                left: AppSpacing.pageHorizontal,
+                right: AppSpacing.pageHorizontal,
+                top: AppSpacing.pageVertical,
+                bottom: AppSpacing.pageVertical + mediaQuery.viewInsets.bottom,
               ),
-              if (state.isBusy) ...[
-                const LinearProgressIndicator(minHeight: 3),
-                const SizedBox(height: AppSpacing.sectionGap),
-              ],
-              FilledButton(
-                onPressed: sourceExists ? () => _runCrop() : null,
-                child: const Text('크롭 다시 실행'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '이미지를 자르기 화면으로 이동 중입니다.',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontSize: bodyFont,
+                    ),
+                  ),
+                  SizedBox(height: gap),
+                  if (!sourceExists) ...[
+                    Text(
+                      '원본 이미지가 없습니다. ${widget.sourceImagePath}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: bodyFont,
+                      ),
+                    ),
+                    SizedBox(height: gap),
+                  ],
+                  Expanded(
+                    child: Center(
+                      child: sourceExists
+                          ? Image.file(File(widget.sourceImagePath), fit: BoxFit.contain)
+                          : const Text('선택한 이미지를 찾을 수 없습니다.'),
+                    ),
+                  ),
+                  if (state.isBusy) ...[
+                    SizedBox(height: gap),
+                    const LinearProgressIndicator(minHeight: 3),
+                    SizedBox(height: gap),
+                  ] else
+                    SizedBox(height: gap * 0.4),
+                  SizedBox(
+                    height: buttonHeight,
+                    child: FilledButton(
+                      onPressed: sourceExists ? () => _runCrop() : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(1),
+                        textStyle: TextStyle(
+                          fontSize: buttonFont,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('크롭 다시 실행'),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  static double _uiDensity(double screenHeight) {
+    return (screenHeight / 640).clamp(0.62, 1.0);
+  }
+
+  static double _responsiveGap(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (14 * density).clamp(3.0, 14.0);
+  }
+
+  static double _responsiveButtonHeight(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (50 * density).clamp(28.0, 58.0);
+  }
+
+  static double _responsiveButtonFont(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (18 * density).clamp(11.0, 18.0);
+  }
+
+  static double _responsiveBodySize(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (18 * density).clamp(12.0, 18.0);
   }
 }

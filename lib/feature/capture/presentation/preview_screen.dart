@@ -47,45 +47,124 @@ class PreviewScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('미리보기')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pageHorizontal,
-            vertical: AppSpacing.pageVertical,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Center(
-                  child: previewFile.existsSync()
-                      ? Image.file(previewFile, fit: BoxFit.contain)
-                      : Text(previewImagePath),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final mediaQuery = MediaQuery.of(context);
+            final gap = _responsiveGap(constraints.maxHeight);
+            final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
+            final buttonFont = _responsiveButtonFont(constraints.maxHeight);
+            final imageSectionPadding = _responsiveImagePadding(constraints.maxHeight);
+
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(
+                left: AppSpacing.pageHorizontal,
+                right: AppSpacing.pageHorizontal,
+                top: AppSpacing.pageVertical,
+                bottom: AppSpacing.pageVertical + mediaQuery.viewInsets.bottom,
               ),
-              const SizedBox(height: AppSpacing.sectionGap),
-              if (state.isBusy) ...[
-                const LinearProgressIndicator(minHeight: 3),
-                const SizedBox(height: AppSpacing.sectionGap),
-              ],
-              FilledButton(
-                onPressed: state.isBusy ? null : () => saveAndGo(label: '저장', moveToCapture: false),
-                child: const Text('저장하기'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: imageSectionPadding),
+                      child: Center(
+                        child: previewFile.existsSync()
+                            ? Image.file(previewFile, fit: BoxFit.contain)
+                            : Text(previewImagePath),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: gap),
+                  if (state.isBusy) ...[
+                    const LinearProgressIndicator(minHeight: 3),
+                    SizedBox(height: gap),
+                  ],
+                  SizedBox(
+                    height: buttonHeight,
+                    child: FilledButton(
+                      onPressed: state.isBusy
+                          ? null
+                          : () => saveAndGo(label: '저장', moveToCapture: false),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(1),
+                        textStyle: TextStyle(
+                          fontSize: buttonFont,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('저장하기'),
+                    ),
+                  ),
+                  SizedBox(height: gap),
+                  SizedBox(
+                    height: buttonHeight,
+                    child: FilledButton(
+                      onPressed: state.isBusy
+                          ? null
+                          : () => saveAndGo(
+                                label: '저장하고 하나 더',
+                                moveToCapture: true,
+                              ),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(1),
+                        textStyle: TextStyle(
+                          fontSize: buttonFont,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('저장하고 하나 더!'),
+                    ),
+                  ),
+                  SizedBox(height: gap),
+                  SizedBox(
+                    height: buttonHeight,
+                    child: OutlinedButton(
+                      onPressed: state.isBusy
+                          ? null
+                          : () => context.push('/capture'),
+                      style: OutlinedButton.styleFrom(
+                        textStyle: TextStyle(
+                          fontSize: buttonFont,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        minimumSize: const Size.fromHeight(1),
+                      ),
+                      child: const Text('다시 찍기'),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed:
-                    state.isBusy ? null : () => saveAndGo(label: '저장하고 하나 더', moveToCapture: true),
-                child: const Text('저장하고 하나 더!'),
-              ),
-                const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: state.isBusy ? null : () => context.push('/capture'),
-                child: const Text('다시 찍기'),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  static double _uiDensity(double screenHeight) {
+    return (screenHeight / 640).clamp(0.62, 1.0);
+  }
+
+  static double _responsiveGap(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (14 * density).clamp(3.5, 14.0);
+  }
+
+  static double _responsiveButtonHeight(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (54 * density).clamp(28.0, 58.0);
+  }
+
+  static double _responsiveButtonFont(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (18 * density).clamp(11.0, 18.0);
+  }
+
+  static double _responsiveImagePadding(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (14 * density).clamp(0.0, 12.0);
   }
 }
