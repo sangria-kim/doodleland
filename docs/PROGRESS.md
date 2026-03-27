@@ -32,6 +32,26 @@
 
 ### 2026-03-27
 
+#### docs: fix missing merge history in progress log (`commit: 27839c4`)
+- 누락된 커밋 기록 항목을 정합성 점검 후 보강했으며, 최신 main 히스토리 반영성을 회복했습니다.
+- 문서 로그와 실제 커밋 목록의 동기화를 위해 `commit id` 순서를 최신 기준으로 정렬했습니다.
+- 향후 추적 자동화를 위해 누락 탐지 기준을 재확인 가능한 상태로 정리했습니다.
+
+#### docs: add implementation plan and sync progress state (`commit: 3641c9f`)
+- 구현 계획 문서를 프로젝트 기준 상태와 정합되게 통합해 이후 단계 실행 가이드를 완성했습니다.
+- 전체 진행률과 다음 작업 항목을 plan 기준에 맞춰 재정렬해 공수 산정의 기준점을 마련했습니다.
+- PROGRESS 운영 포맷을 실제 수행 흐름에 맞게 정비했습니다.
+
+#### docs: update branch policy for document-only changes (`commit: cc9cc5b`)
+- 문서 작업의 예외 규칙을 규정해 코드/문서 작업의 브랜치 정책 분기를 명확히 했습니다.
+- 운영 문서 수정 절차를 정리해 협업 시 브랜치 변경 충돌 가능성을 줄였습니다.
+- 정책 변경 내용을 기준 문서에 반영해 즉시 적용 가능한 형태로 확정했습니다.
+
+#### docs: sync progress docs with commit-id tracking (`commit: 8e24f09`)
+- 커밋 추적 가시성을 높이기 위해 PROGRESS 로그에 commit id 중심 규격을 추가했습니다.
+- 커밋 로그를 최신 상태 기준으로 유지하는 포맷을 정리하고 관리 기준을 통일했습니다.
+- 추적 누락 위험을 줄이기 위한 문서 갱신 루틴을 구체화했습니다.
+
 #### docs: log feature-first skeleton merge (`commit: dcadb81`)
 - squash merge 후 AGENTS 규칙에 따라 1-1 적용 결과를 PROGRESS 진행률/현재 상태에 반영했습니다.
 - 커밋 기준 이력의 최신성을 보장하도록 현재 작업 상태를 최신 순으로 갱신했습니다.
