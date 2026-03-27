@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as image;
@@ -45,7 +47,7 @@ class SaveCharacterUseCase {
       destinationImagePath: transparentImagePath,
     );
     await _saveThumbnailImage(
-      sourceImage: decodedImage,
+      sourceImageBytes: bytes,
       destinationImagePath: thumbnailPath,
     );
 
@@ -65,12 +67,15 @@ class SaveCharacterUseCase {
   }
 
   Future<void> _saveThumbnailImage({
-    required image.Image sourceImage,
+    required Uint8List sourceImageBytes,
     required String destinationImagePath,
   }) async {
-    final resizedImage = image.copyResize(sourceImage, width: 200);
+    final pngBytes = await Isolate.run(
+      () => _renderThumbnailPng(sourceImageBytes: sourceImageBytes, width: 200),
+    );
+
     await File(destinationImagePath).writeAsBytes(
-      image.encodePng(resizedImage),
+      pngBytes,
     );
   }
 }
@@ -83,6 +88,19 @@ class SaveCharacterResult {
 
   final int characterId;
   final String? qualityWarningMessage;
+}
+
+List<int> _renderThumbnailPng({
+  required Uint8List sourceImageBytes,
+  int width = 200,
+}) {
+  final sourceImage = image.decodeImage(sourceImageBytes);
+  if (sourceImage == null) {
+    throw StateError('이미지 디코드에 실패했습니다.');
+  }
+
+  final resizedImage = image.copyResize(sourceImage, width: width);
+  return image.encodePng(resizedImage);
 }
 
 final saveCharacterUseCaseProvider = Provider<SaveCharacterUseCase>((ref) {

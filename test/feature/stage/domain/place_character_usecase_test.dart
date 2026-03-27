@@ -1,6 +1,5 @@
 import 'package:doodleland/core/database/app_database.dart';
 import 'package:doodleland/feature/stage/domain/model/motion_preset.dart';
-import 'package:doodleland/feature/stage/domain/model/placed_character.dart';
 import 'package:doodleland/feature/stage/domain/place_character_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 

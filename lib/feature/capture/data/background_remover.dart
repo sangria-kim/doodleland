@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:collection';
+import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
@@ -29,72 +31,24 @@ class BackgroundRemover {
     }
 
     final bytes = await sourceFile.readAsBytes();
-    final source = img.decodeImage(bytes);
-    if (source == null) {
-      throw StateError('이미지 디코드에 실패했습니다.');
-    }
-
-    final resized = _resizeForProcessing(source, maxDimension);
-    final background = _sampleEdgeColor(resized);
-    final backgroundThresholdSq = colorThreshold * colorThreshold;
-    final floodFillThresholdSq = (colorThreshold + 12) * (colorThreshold + 12);
-    final initialForegroundMask = _buildForegroundMask(
-      resized,
-      backgroundR: background.r,
-      backgroundG: background.g,
-      backgroundB: background.b,
-      thresholdSquared: backgroundThresholdSq,
-    );
-    final cleanedForegroundMask = _removeBackgroundLeakage(
-      resized,
-      initialMask: initialForegroundMask,
-      backgroundR: background.r,
-      backgroundG: background.g,
-      backgroundB: background.b,
-      floodFillThresholdSquared: floodFillThresholdSq,
-    );
-    final alphaMask = _removeNoiseByComponent(
-      resized.width,
-      resized.height,
-      cleanedForegroundMask,
+    final result = await Isolate.run(
+      () => _removeBackgroundInIsolate(
+        sourceBytes: bytes,
+        maxDimension: maxDimension,
+        colorThreshold: colorThreshold,
+      ),
     );
 
-    final outputImage = img.Image(width: resized.width, height: resized.height);
-    final totalPixels = resized.width * resized.height;
-    var transparentPixels = 0;
-
-    for (var y = 0; y < resized.height; y++) {
-      for (var x = 0; x < resized.width; x++) {
-        final index = y * resized.width + x;
-        final pixel = resized.getPixel(x, y);
-        final alpha = alphaMask[index] ? 255 : 0;
-        if (!alphaMask[index]) {
-          transparentPixels++;
-        }
-        outputImage.setPixelRgba(
-          x,
-          y,
-          (pixel.r).round(),
-          (pixel.g).round(),
-          (pixel.b).round(),
-          alpha,
-        );
-      }
-    }
-
-    final pngBytes = img.encodePng(outputImage);
     await File(destinationImagePath).parent.create(recursive: true);
-    await File(destinationImagePath).writeAsBytes(pngBytes);
-
-    final transparentAreaRatio = transparentPixels / totalPixels;
+    await File(destinationImagePath).writeAsBytes(result.pngBytes);
 
     return BackgroundRemovalResult(
-      transparentAreaRatio: transparentAreaRatio,
-      qualityWarningMessage: _qualityWarningMessage(transparentAreaRatio),
+      transparentAreaRatio: result.transparentAreaRatio,
+      qualityWarningMessage: result.qualityWarningMessage,
     );
   }
 
-  img.Image _resizeForProcessing(img.Image source, int maxDimension) {
+  static img.Image _resizeForProcessing(img.Image source, int maxDimension) {
     final maxSide = max(source.width, source.height);
     if (maxSide <= maxDimension) return source;
 
@@ -110,7 +64,7 @@ class BackgroundRemover {
     );
   }
 
-  ({int r, int g, int b}) _sampleEdgeColor(img.Image image) {
+  static ({int r, int g, int b}) _sampleEdgeColor(img.Image image) {
     final width = image.width;
     final height = image.height;
     final step = max(1, max(width, height) ~/ 24);
@@ -153,7 +107,7 @@ class BackgroundRemover {
     );
   }
 
-  List<bool> _buildForegroundMask(
+  static List<bool> _buildForegroundMask(
     img.Image image, {
     required int backgroundR,
     required int backgroundG,
@@ -178,7 +132,7 @@ class BackgroundRemover {
     return pixels;
   }
 
-  List<bool> _removeBackgroundLeakage(
+  static List<bool> _removeBackgroundLeakage(
     img.Image image, {
     required List<bool> initialMask,
     required int backgroundR,
@@ -279,7 +233,7 @@ class BackgroundRemover {
     return finalForeground;
   }
 
-  List<bool> _removeNoiseByComponent(
+  static List<bool> _removeNoiseByComponent(
     int width,
     int height,
     List<bool> foregroundMask,
@@ -344,7 +298,7 @@ class BackgroundRemover {
     return cleaned;
   }
 
-  String? _qualityWarningMessage(double transparentAreaRatio) {
+  static String? _qualityWarningMessage(double transparentAreaRatio) {
     if (transparentAreaRatio < 0.05) {
       return '배경 제거 후 투명영역이 5% 미만입니다. 배경과 피사체 색상 대비를 확인해 주세요.';
     }
@@ -353,4 +307,84 @@ class BackgroundRemover {
     }
     return null;
   }
+}
+
+class _BackgroundRemovalResult {
+  const _BackgroundRemovalResult({
+    required this.pngBytes,
+    required this.transparentAreaRatio,
+    this.qualityWarningMessage,
+  });
+
+  final List<int> pngBytes;
+  final double transparentAreaRatio;
+  final String? qualityWarningMessage;
+}
+
+_BackgroundRemovalResult _removeBackgroundInIsolate({
+  required Uint8List sourceBytes,
+  required int maxDimension,
+  required int colorThreshold,
+}) {
+  final source = img.decodeImage(sourceBytes);
+  if (source == null) {
+    throw StateError('이미지 디코드에 실패했습니다.');
+  }
+
+  final resized = BackgroundRemover._resizeForProcessing(source, maxDimension);
+  final background = BackgroundRemover._sampleEdgeColor(resized);
+  final backgroundThresholdSq = colorThreshold * colorThreshold;
+  final floodFillThresholdSq = (colorThreshold + 12) * (colorThreshold + 12);
+  final initialForegroundMask = BackgroundRemover._buildForegroundMask(
+    resized,
+    backgroundR: background.r,
+    backgroundG: background.g,
+    backgroundB: background.b,
+    thresholdSquared: backgroundThresholdSq,
+  );
+  final cleanedForegroundMask = BackgroundRemover._removeBackgroundLeakage(
+    resized,
+    initialMask: initialForegroundMask,
+    backgroundR: background.r,
+    backgroundG: background.g,
+    backgroundB: background.b,
+    floodFillThresholdSquared: floodFillThresholdSq,
+  );
+  final alphaMask = BackgroundRemover._removeNoiseByComponent(
+    resized.width,
+    resized.height,
+    cleanedForegroundMask,
+  );
+
+  final outputImage = img.Image(width: resized.width, height: resized.height);
+  final totalPixels = resized.width * resized.height;
+  var transparentPixels = 0;
+
+  for (var y = 0; y < resized.height; y++) {
+    for (var x = 0; x < resized.width; x++) {
+      final index = y * resized.width + x;
+      final pixel = resized.getPixel(x, y);
+      final alpha = alphaMask[index] ? 255 : 0;
+      if (!alphaMask[index]) {
+        transparentPixels++;
+      }
+      outputImage.setPixelRgba(
+        x,
+        y,
+        (pixel.r).round(),
+        (pixel.g).round(),
+        (pixel.b).round(),
+        alpha,
+      );
+    }
+  }
+
+  final transparentAreaRatio = transparentPixels / totalPixels;
+  return _BackgroundRemovalResult(
+    pngBytes: img.encodePng(outputImage),
+    transparentAreaRatio: transparentAreaRatio,
+    qualityWarningMessage: BackgroundRemover._qualityWarningMessage(
+      transparentAreaRatio,
+    ),
+  );
 }

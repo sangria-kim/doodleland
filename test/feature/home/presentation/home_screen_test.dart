@@ -1,7 +1,6 @@
 import 'package:doodleland/core/database/app_database.dart';
 import 'package:doodleland/feature/home/presentation/home_screen.dart';
 import 'package:doodleland/feature/library/data/character_repository.dart';
-import 'package:doodleland/feature/library/presentation/library_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
