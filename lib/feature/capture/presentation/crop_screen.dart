@@ -22,18 +22,22 @@ class _CropScreenState extends ConsumerState<CropScreen> {
   @override
   void initState() {
     super.initState();
-    _runCrop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _runCrop();
+      }
+    });
   }
 
   Future<void> _runCrop() async {
     if (_isWorking || widget.sourceImagePath.isEmpty) return;
     if (!File(widget.sourceImagePath).existsSync()) return;
 
-    _isWorking = true;
+    setState(() {
+      _isWorking = true;
+    });
 
     try {
-      if (ref.read(captureViewModelProvider).isBusy) return;
-
       final result = await ref
           .read(captureViewModelProvider.notifier)
           .cropImage(widget.sourceImagePath);
@@ -56,7 +60,11 @@ class _CropScreenState extends ConsumerState<CropScreen> {
       ref.read(captureViewModelProvider.notifier).clearFeedback();
       context.push('/capture/preview', extra: result);
     } finally {
-      _isWorking = false;
+      if (mounted) {
+        setState(() {
+          _isWorking = false;
+        });
+      }
     }
   }
 
@@ -114,7 +122,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
                           : const Text('선택한 이미지를 찾을 수 없습니다.'),
                     ),
                   ),
-                  if (state.isBusy) ...[
+                  if (state.isBusy || _isWorking) ...[
                     SizedBox(height: gap),
                     const LinearProgressIndicator(minHeight: 3),
                     SizedBox(height: gap),
@@ -123,7 +131,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
                   SizedBox(
                     height: buttonHeight,
                     child: FilledButton(
-                      onPressed: sourceExists && !state.isBusy && !_isWorking
+                      onPressed: sourceExists && !_isWorking
                           ? () => _runCrop()
                           : null,
                       style: FilledButton.styleFrom(
