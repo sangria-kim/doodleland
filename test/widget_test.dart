@@ -6,13 +6,18 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doodleland/app.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const DoodlelandApp());
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: DoodlelandApp(),
+      ),
+    );
 
     // Verify that the new home screen is rendered.
     expect(find.text('그림놀이터'), findsOneWidget);
