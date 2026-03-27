@@ -22,6 +22,13 @@ class StageScreen extends ConsumerWidget {
           onPressed: () => context.go('/'),
           icon: const Icon(Icons.arrow_back),
         ),
+        actions: [
+          IconButton(
+            onPressed: () => context.go('/stage/background'),
+            icon: const Icon(Icons.image),
+            tooltip: '배경 바꾸기',
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -48,9 +55,20 @@ class StageScreen extends ConsumerWidget {
                 ),
               const SizedBox(height: 12),
               Expanded(
-                child: state.placedCharacters.isEmpty
-                    ? _EmptyStageHint()
-                    : _PlacedCharactersGrid(placedCharacters: state.placedCharacters),
+                child: Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(state.selectedBackground.assetPath),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: state.placedCharacters.isEmpty
+                      ? _EmptyStageHint()
+                      : _PlacedCharactersGrid(
+                          placedCharacters: state.placedCharacters,
+                        ),
+                ),
               ),
             ],
           ),

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../library/presentation/library_viewmodel.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final libraryState = ref.watch(libraryViewModelProvider);
+
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -46,7 +50,9 @@ class HomeScreen extends StatelessWidget {
                     label: '놀이 시작',
                     icon: Icons.play_arrow,
                     tonal: true,
-                    onPressed: () => context.push('/stage/background'),
+                    onPressed: libraryState.isLoading
+                        ? null
+                        : () => _startStage(context, ref),
                   ),
                 ],
               ),
@@ -56,19 +62,39 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _startStage(BuildContext context, WidgetRef ref) async {
+    final viewModel = ref.read(libraryViewModelProvider.notifier);
+    await viewModel.loadCharacters();
+
+    final characters = ref.read(libraryViewModelProvider).characters;
+    if (!context.mounted) {
+      return;
+    }
+
+    if (characters.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('그림이 없어요. 먼저 그림을 만들어보세요.')),
+      );
+      context.push('/capture');
+      return;
+    }
+
+    context.push('/stage/background');
+  }
 }
 
 class _HomeActionButton extends StatelessWidget {
   const _HomeActionButton({
     required this.label,
     required this.icon,
-    required this.onPressed,
+    this.onPressed,
     this.tonal = false,
   });
 
   final String label;
   final IconData icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool tonal;
 
   @override
