@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -232,6 +233,7 @@ class _PlacedCharactersStage extends StatelessWidget {
       children: [
         for (final placed in [...placedCharacters]..sort((a, b) => a.zIndex.compareTo(b.zIndex)))
           _InteractivePlacedCharacter(
+            key: ValueKey(placed.instanceId),
             placed: placed,
             stageSize: stageSize,
             onInteraction: onInteraction,
@@ -246,6 +248,7 @@ class _PlacedCharactersStage extends StatelessWidget {
 
 class _InteractivePlacedCharacter extends StatefulWidget {
   const _InteractivePlacedCharacter({
+    super.key,
     required this.placed,
     required this.stageSize,
     required this.onInteraction,
@@ -274,6 +277,8 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
   late final Animation<double> _entryScale;
   late final AnimationController _bounceController;
   late final Animation<double> _bounceScale;
+  late final AnimationController _motionController;
+  late final Animation<double> _motionPhase;
 
   Offset _dragStartPosition = Offset.zero;
   bool _isDragging = false;
@@ -318,14 +323,61 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
         weight: 50,
       ),
     ]).animate(_bounceController);
+    _motionController = AnimationController(
+      vsync: this,
+      duration: _motionDuration(),
+    );
+    _motionPhase = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _motionController,
+        curve: Curves.linear,
+      ),
+    );
+
     _entryController.forward();
+    _startMotionAnimation();
+
+    _bounceController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && !_isDragging && mounted) {
+        _startMotionAnimation();
+      }
+    });
   }
 
   @override
   void dispose() {
     _entryController.dispose();
     _bounceController.dispose();
+    _motionController.dispose();
     super.dispose();
+  }
+
+  Duration _motionDuration() {
+    return switch (widget.placed.motionPreset) {
+      MotionPreset.floating => const Duration(milliseconds: 2000),
+      MotionPreset.bouncing => const Duration(milliseconds: 1200),
+      MotionPreset.gliding => const Duration(milliseconds: 3000),
+      MotionPreset.rolling => const Duration(milliseconds: 2500),
+      MotionPreset.spinning => const Duration(milliseconds: 1500),
+    };
+  }
+
+  void _startMotionAnimation() {
+    if (_isDragging) {
+      return;
+    }
+    if (!_motionController.isAnimating) {
+      _motionController.repeat();
+    }
+  }
+
+  void _pauseMotionAnimation() {
+    if (_motionController.isAnimating) {
+      _motionController.stop();
+    }
   }
 
   void _handleTap() {
@@ -335,7 +387,13 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     if (_bounceController.isAnimating) {
       return;
     }
-    _bounceController.forward(from: 0);
+
+    _pauseMotionAnimation();
+    _bounceController.forward(from: 0).whenComplete(() {
+      if (mounted && !_isDragging) {
+        _startMotionAnimation();
+      }
+    });
   }
 
   void _handlePanStart(DragStartDetails details) {
@@ -343,6 +401,7 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     widget.onBringToFront(widget.placed.instanceId);
     _dragStartPosition = widget.placed.position;
     _isDragging = true;
+    _pauseMotionAnimation();
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
@@ -366,6 +425,7 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
 
   void _handlePanEnd(DragEndDetails _) {
     _isDragging = false;
+    _startMotionAnimation();
   }
 
   Offset _clampPosition(Offset position) {
@@ -386,6 +446,33 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     );
   }
 
+  Offset _motionOffset() {
+    final wave = math.sin(_motionPhase.value * math.pi * 2);
+    final stageHeight = widget.stageSize.height <= 0 ? 1.0 : widget.stageSize.height;
+    final stageWidth = widget.stageSize.width <= 0 ? 1.0 : widget.stageSize.width;
+    final floatingOffsetY = 20 / stageHeight;
+    final bouncingOffsetY = 40 / stageHeight;
+    final glidingOffsetX = 60 / stageWidth;
+    final rollingOffsetX = 80 / stageWidth;
+
+    return switch (widget.placed.motionPreset) {
+      MotionPreset.floating => Offset(0.0, wave * floatingOffsetY),
+      MotionPreset.bouncing => Offset(0.0, -wave.abs() * bouncingOffsetY),
+      MotionPreset.gliding => Offset(wave * glidingOffsetX, 0.0),
+      MotionPreset.rolling => Offset(wave * rollingOffsetX, 0.0),
+      MotionPreset.spinning => Offset.zero,
+    };
+  }
+
+  double _motionRotation() {
+    final wave = _motionPhase.value * math.pi * 2;
+    return switch (widget.placed.motionPreset) {
+      MotionPreset.rolling => wave,
+      MotionPreset.spinning => wave,
+      _ => 0.0,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final x = widget.placed.position.dx.clamp(0.0, 1.0);
@@ -393,11 +480,24 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     return Align(
       alignment: Alignment(x * 2 - 1, y * 2 - 1),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_entryScale, _bounceScale]),
-        builder: (context, child) => Transform.scale(
-          scale: _entryScale.value * _bounceScale.value * widget.placed.scale,
-          child: child,
-        ),
+        animation: Listenable.merge([_entryScale, _bounceScale, _motionController]),
+        builder: (context, child) {
+          final motionOffset = _motionOffset();
+          final motionRotation = _motionRotation();
+          return Transform.scale(
+            scale: _entryScale.value * _bounceScale.value * widget.placed.scale,
+            child: Transform.translate(
+              offset: Offset(
+                motionOffset.dx * widget.stageSize.width,
+                motionOffset.dy * widget.stageSize.height,
+              ),
+              child: Transform.rotate(
+                angle: motionRotation,
+                child: child,
+              ),
+            ),
+          );
+        },
         child: GestureDetector(
           onTap: _handleTap,
           onPanStart: _handlePanStart,
