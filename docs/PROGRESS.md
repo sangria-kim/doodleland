@@ -31,6 +31,11 @@
 
 ### 2026-03-27
 
+#### ui: fix overflow-safe responsive capture, playground, and stage screens (`commit: a0a5bb8`)
+- 소형/저소형 화면에서 하단 버튼이 화면 밖으로 넘어가는 오버플로우를 방지하기 위해 반응형 크기 계산을 통일했습니다.
+- 그림 가져오기, 미리보기, 크롭, 홈, 캐릭터 선택 시트의 버튼·간격·폰트 크기를 가용 높이 기준으로 동적으로 축소했습니다.
+- `SingleChildScrollView` 없이 화면 안에서 레이아웃이 수렴하도록 조정해 터치 영역과 시각적 일관성을 유지했습니다.
+
 #### chore: merge 4-2 performance and release readiness (`commit: d450370`)
 - 배경 제거/썸네일 파이프라인의 무거운 픽셀 연산을 Isolate로 이전해 성능 점검을 강화했습니다.
 - `flutter analyze` 경고 정리와 `flutter test` 통과 상태를 기준으로 반영했습니다.
