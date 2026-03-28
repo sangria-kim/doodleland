@@ -141,9 +141,9 @@ class HomeScreen extends ConsumerWidget {
     }
 
     if (characters.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('그림이 없어요. 먼저 그림을 만들어보세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('그림이 없어요. 먼저 그림을 만들어보세요.')));
       context.push('/capture');
       return;
     }

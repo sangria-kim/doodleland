@@ -6,10 +6,7 @@ import '../domain/model/stage_background.dart';
 import 'stage_viewmodel.dart';
 
 class BackgroundSelectScreen extends ConsumerWidget {
-  const BackgroundSelectScreen({
-    super.key,
-    this.onBackgroundSelected,
-  });
+  const BackgroundSelectScreen({super.key, this.onBackgroundSelected});
 
   final ValueChanged<StageBackground>? onBackgroundSelected;
 
@@ -23,10 +20,7 @@ class BackgroundSelectScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '무대 배경',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('무대 배경', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               Expanded(
                 child: GridView.builder(
@@ -42,7 +36,8 @@ class BackgroundSelectScreen extends ConsumerWidget {
                     return _BackgroundCard(
                       key: ValueKey(background.id),
                       background: background,
-                      onTap: () => _handleBackgroundTap(context, ref, background),
+                      onTap: () =>
+                          _handleBackgroundTap(context, ref, background),
                     );
                   },
                 ),

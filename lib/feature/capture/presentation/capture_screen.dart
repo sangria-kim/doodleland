@@ -10,9 +10,7 @@ class CaptureScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const Scaffold(
-      body: _CaptureScreenBody(),
-    );
+    return const Scaffold(body: _CaptureScreenBody());
   }
 }
 
@@ -81,8 +79,9 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                     label: '카메라로 찍기',
                     icon: Icons.camera_alt,
                     buttonFontSize: buttonFont,
-                    onPressed:
-                        state.isBusy ? null : () => _onPick(context, CaptureImageSource.camera),
+                    onPressed: state.isBusy
+                        ? null
+                        : () => _onPick(context, CaptureImageSource.camera),
                   ),
                 ),
                 SizedBox(height: gap),
@@ -92,8 +91,9 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                     label: '갤러리에서 선택',
                     icon: Icons.photo_library,
                     buttonFontSize: buttonFont,
-                    onPressed:
-                        state.isBusy ? null : () => _onPick(context, CaptureImageSource.gallery),
+                    onPressed: state.isBusy
+                        ? null
+                        : () => _onPick(context, CaptureImageSource.gallery),
                   ),
                 ),
                 if (state.isBusy) ...[
@@ -172,7 +172,10 @@ class _SourceButton extends StatelessWidget {
           vertical: (buttonFontSize * 0.45).clamp(4.0, 12.0),
           horizontal: 12,
         ),
-        textStyle: TextStyle(fontSize: buttonFontSize, fontWeight: FontWeight.w700),
+        textStyle: TextStyle(
+          fontSize: buttonFontSize,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

@@ -99,7 +99,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
                 children: [
                   Text(
                     '이미지를 자르기 화면으로 이동 중입니다.',
-                    style: theme.textTheme.bodyLarge?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: bodyFont,
                     ),
                   ),
@@ -118,7 +118,10 @@ class _CropScreenState extends ConsumerState<CropScreen> {
                   Expanded(
                     child: Center(
                       child: sourceExists
-                          ? Image.file(File(widget.sourceImagePath), fit: BoxFit.contain)
+                          ? Image.file(
+                              File(widget.sourceImagePath),
+                              fit: BoxFit.contain,
+                            )
                           : const Text('선택한 이미지를 찾을 수 없습니다.'),
                     ),
                   ),

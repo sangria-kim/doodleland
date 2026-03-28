@@ -35,7 +35,9 @@ class PreviewScreen extends ConsumerWidget {
       final warningMessage = savedResult.qualityWarningMessage;
       final suffix = warningMessage == null ? '' : ' ($warningMessage)';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label 완료 (${savedResult.characterId})$suffix')),
+        SnackBar(
+          content: Text('$label 완료 (${savedResult.characterId})$suffix'),
+        ),
       );
       if (moveToCapture) {
         context.go('/capture');
@@ -53,7 +55,9 @@ class PreviewScreen extends ConsumerWidget {
             final gap = _responsiveGap(constraints.maxHeight);
             final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
             final buttonFont = _responsiveButtonFont(constraints.maxHeight);
-            final imageSectionPadding = _responsiveImagePadding(constraints.maxHeight);
+            final imageSectionPadding = _responsiveImagePadding(
+              constraints.maxHeight,
+            );
 
             return AnimatedPadding(
               duration: const Duration(milliseconds: 180),
@@ -69,7 +73,9 @@ class PreviewScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: imageSectionPadding),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: imageSectionPadding,
+                      ),
                       child: Center(
                         child: previewFile.existsSync()
                             ? Image.file(previewFile, fit: BoxFit.contain)
@@ -105,9 +111,9 @@ class PreviewScreen extends ConsumerWidget {
                       onPressed: state.isBusy
                           ? null
                           : () => saveAndGo(
-                                label: '저장하고 하나 더',
-                                moveToCapture: true,
-                              ),
+                              label: '저장하고 하나 더',
+                              moveToCapture: true,
+                            ),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(1),
                         textStyle: TextStyle(
