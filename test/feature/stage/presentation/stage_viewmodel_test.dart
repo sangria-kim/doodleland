@@ -41,9 +41,7 @@ void main() {
         sceneRepositoryProvider.overrideWith(
           (_) => _FakeStageRepository(selectedBackground),
         ),
-        placeCharacterUseCaseProvider.overrideWith(
-          (_) => fakeUseCase,
-        ),
+        placeCharacterUseCaseProvider.overrideWith((_) => fakeUseCase),
       ],
     );
     addTearDown(container.dispose);
@@ -65,7 +63,80 @@ void main() {
 
     expect(isAdded, isTrue);
     expect(fakeUseCase.capturedGroundY, equals(selectedBackground.groundY));
-    expect(container.read(stageViewModelProvider).placedCharacters.single.position.dy, equals(0.86));
+    expect(
+      container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .single
+          .position
+          .dy,
+      equals(0.86),
+    );
+  });
+
+  test('passes incremental zIndex when placing multiple characters', () async {
+    final fakeUseCase = _FakePlaceCharacterUseCase();
+    final container = ProviderContainer(
+      overrides: [
+        placeCharacterUseCaseProvider.overrideWith((_) => fakeUseCase),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final vm = container.read(stageViewModelProvider.notifier);
+    await vm.placeCharacter(
+      character: _buildCharacter(id: 21, name: 'first'),
+      motionPreset: MotionPreset.floating,
+    );
+    await vm.placeCharacter(
+      character: _buildCharacter(id: 22, name: 'second'),
+      motionPreset: MotionPreset.bouncing,
+    );
+
+    expect(fakeUseCase.capturedZIndexes, equals([0, 1]));
+    expect(
+      container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .map((character) => character.zIndex)
+          .toList(),
+      equals([0, 1]),
+    );
+  });
+
+  test('rejects adding an eleventh character when stage is full', () async {
+    final fakeUseCase = _FakePlaceCharacterUseCase();
+    final container = ProviderContainer(
+      overrides: [
+        placeCharacterUseCaseProvider.overrideWith((_) => fakeUseCase),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final vm = container.read(stageViewModelProvider.notifier);
+    for (var index = 0; index < 10; index += 1) {
+      final isAdded = await vm.placeCharacter(
+        character: _buildCharacter(id: 100 + index, name: 'character-$index'),
+        motionPreset: MotionPreset.floating,
+      );
+      expect(isAdded, isTrue);
+    }
+
+    final overflowAdded = await vm.placeCharacter(
+      character: _buildCharacter(id: 999, name: 'overflow'),
+      motionPreset: MotionPreset.spinning,
+    );
+
+    expect(overflowAdded, isFalse);
+    expect(fakeUseCase.callCount, equals(10));
+    expect(
+      container.read(stageViewModelProvider).placedCharacters,
+      hasLength(10),
+    );
+    expect(
+      container.read(stageViewModelProvider).errorMessage,
+      equals('무대가 꽉 찼어요!'),
+    );
   });
 
   test('updates character position and clamps to normalized bounds', () async {
@@ -87,14 +158,21 @@ void main() {
       motionPreset: MotionPreset.floating,
     );
 
-    final targetId = container.read(stageViewModelProvider).placedCharacters.single.instanceId;
+    final targetId = container
+        .read(stageViewModelProvider)
+        .placedCharacters
+        .single
+        .instanceId;
     final moved = vm.updateCharacterPosition(
       instanceId: targetId,
       position: const Offset(1.7, -0.2),
     );
 
     expect(moved, isTrue);
-    final updated = container.read(stageViewModelProvider).placedCharacters.single;
+    final updated = container
+        .read(stageViewModelProvider)
+        .placedCharacters
+        .single;
     expect(updated.position.dx, equals(1.0));
     expect(updated.position.dy, equals(0.0));
   });
@@ -131,11 +209,17 @@ void main() {
       motionPreset: MotionPreset.floating,
     );
 
-    final firstId = container.read(stageViewModelProvider).placedCharacters.first.instanceId;
+    final firstId = container
+        .read(stageViewModelProvider)
+        .placedCharacters
+        .first
+        .instanceId;
     vm.bringCharacterToFront(firstId);
 
     final updated = container.read(stageViewModelProvider).placedCharacters;
-    final frontCharacter = updated.firstWhere((character) => character.instanceId == firstId);
+    final frontCharacter = updated.firstWhere(
+      (character) => character.instanceId == firstId,
+    );
     expect(frontCharacter.zIndex, equals(2));
   });
 
@@ -171,85 +255,101 @@ void main() {
       motionPreset: MotionPreset.floating,
     );
 
-    final targetId = container.read(stageViewModelProvider).placedCharacters.first.instanceId;
+    final targetId = container
+        .read(stageViewModelProvider)
+        .placedCharacters
+        .first
+        .instanceId;
     final removed = vm.removeCharacter(targetId);
     final remaining = container.read(stageViewModelProvider).placedCharacters;
 
     expect(removed, isTrue);
     expect(remaining.length, equals(1));
-    expect(remaining.any((character) => character.instanceId == targetId), isFalse);
+    expect(
+      remaining.any((character) => character.instanceId == targetId),
+      isFalse,
+    );
   });
 
-  test('applies tap, drag, and remove transitions for placed characters', () async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+  test(
+    'applies tap, drag, and remove transitions for placed characters',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
 
-    final vm = container.read(stageViewModelProvider.notifier);
-    await vm.placeCharacter(
-      character: Character(
-        id: 15,
-        name: 'sample-1',
-        originalImagePath: '/tmp/original.png',
-        transparentImagePath: '/tmp/transparent.png',
-        thumbnailPath: '/tmp/thumbnail.png',
-        width: 32,
-        height: 32,
-        createdAt: DateTime(2026, 1, 1),
-      ),
-      motionPreset: MotionPreset.floating,
-    );
-    await vm.placeCharacter(
-      character: Character(
-        id: 16,
-        name: 'sample-2',
-        originalImagePath: '/tmp/original.png',
-        transparentImagePath: '/tmp/transparent.png',
-        thumbnailPath: '/tmp/thumbnail.png',
-        width: 32,
-        height: 32,
-        createdAt: DateTime(2026, 1, 1),
-      ),
-      motionPreset: MotionPreset.floating,
-    );
+      final vm = container.read(stageViewModelProvider.notifier);
+      await vm.placeCharacter(
+        character: Character(
+          id: 15,
+          name: 'sample-1',
+          originalImagePath: '/tmp/original.png',
+          transparentImagePath: '/tmp/transparent.png',
+          thumbnailPath: '/tmp/thumbnail.png',
+          width: 32,
+          height: 32,
+          createdAt: DateTime(2026, 1, 1),
+        ),
+        motionPreset: MotionPreset.floating,
+      );
+      await vm.placeCharacter(
+        character: Character(
+          id: 16,
+          name: 'sample-2',
+          originalImagePath: '/tmp/original.png',
+          transparentImagePath: '/tmp/transparent.png',
+          thumbnailPath: '/tmp/thumbnail.png',
+          width: 32,
+          height: 32,
+          createdAt: DateTime(2026, 1, 1),
+        ),
+        motionPreset: MotionPreset.floating,
+      );
 
-    final ids = container.read(stageViewModelProvider).placedCharacters.map((item) {
-      return item.instanceId;
-    }).toList(growable: false);
-    final tappedId = ids[0];
-    final removedId = ids[1];
-
-    vm.bringCharacterToFront(tappedId);
-    expect(
-      container
+      final ids = container
           .read(stageViewModelProvider)
           .placedCharacters
-          .firstWhere((character) => character.instanceId == tappedId)
-          .zIndex,
-      equals(2),
-    );
+          .map((item) {
+            return item.instanceId;
+          })
+          .toList(growable: false);
+      final tappedId = ids[0];
+      final removedId = ids[1];
 
-    final moved = vm.updateCharacterPosition(
-      instanceId: tappedId,
-      position: const Offset(1.9, -0.1),
-    );
-    expect(moved, isTrue);
-    final tappedAfterMove = container
-        .read(stageViewModelProvider)
-        .placedCharacters
-        .firstWhere((character) => character.instanceId == tappedId);
-    expect(tappedAfterMove.position.dx, equals(1.0));
-    expect(tappedAfterMove.position.dy, equals(0.0));
+      vm.bringCharacterToFront(tappedId);
+      expect(
+        container
+            .read(stageViewModelProvider)
+            .placedCharacters
+            .firstWhere((character) => character.instanceId == tappedId)
+            .zIndex,
+        equals(2),
+      );
 
-    final removed = vm.removeCharacter(removedId);
-    expect(removed, isTrue);
-    final remaining = container.read(stageViewModelProvider).placedCharacters;
-    expect(remaining.length, equals(1));
-    expect(remaining.first.instanceId, equals(tappedId));
-  });
+      final moved = vm.updateCharacterPosition(
+        instanceId: tappedId,
+        position: const Offset(1.9, -0.1),
+      );
+      expect(moved, isTrue);
+      final tappedAfterMove = container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .firstWhere((character) => character.instanceId == tappedId);
+      expect(tappedAfterMove.position.dx, equals(1.0));
+      expect(tappedAfterMove.position.dy, equals(0.0));
+
+      final removed = vm.removeCharacter(removedId);
+      expect(removed, isTrue);
+      final remaining = container.read(stageViewModelProvider).placedCharacters;
+      expect(remaining.length, equals(1));
+      expect(remaining.first.instanceId, equals(tappedId));
+    },
+  );
 }
 
 class _FakePlaceCharacterUseCase extends PlaceCharacterUseCase {
   double? capturedGroundY;
+  final List<int> capturedZIndexes = [];
+  int callCount = 0;
 
   @override
   Future<PlacedCharacter> call({
@@ -258,7 +358,11 @@ class _FakePlaceCharacterUseCase extends PlaceCharacterUseCase {
     double? groundY,
     int? zIndex,
   }) async {
+    callCount += 1;
     capturedGroundY = groundY;
+    if (zIndex != null) {
+      capturedZIndexes.add(zIndex);
+    }
     return super.call(
       character: character,
       motionPreset: motionPreset,
@@ -278,4 +382,17 @@ class _FakeStageRepository extends SceneRepository {
 
   @override
   List<StageBackground> get availableBackgrounds => [_background];
+}
+
+Character _buildCharacter({required int id, required String name}) {
+  return Character(
+    id: id,
+    name: name,
+    originalImagePath: '/tmp/original.png',
+    transparentImagePath: '/tmp/transparent.png',
+    thumbnailPath: '/tmp/thumbnail.png',
+    width: 32,
+    height: 32,
+    createdAt: DateTime(2026, 1, 1),
+  );
 }

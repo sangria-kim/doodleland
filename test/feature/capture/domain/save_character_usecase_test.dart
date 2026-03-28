@@ -14,7 +14,8 @@ class FakeCharacterRepository implements CharacterRepository {
   int _nextId = 1;
 
   @override
-  Future<List<Character>> getCharacters() async => List.unmodifiable(_characters);
+  Future<List<Character>> getCharacters() async =>
+      List.unmodifiable(_characters);
 
   @override
   Future<Character> getCharacterById(int id) async {
@@ -60,7 +61,10 @@ class TestStoragePathFactory extends CharacterStoragePathFactory {
 
   @override
   Future<CharacterStoragePaths> create() async {
-    return CharacterStoragePaths(baseDirectory: baseDirectory, rootDirectoryName: 'capture');
+    return CharacterStoragePaths(
+      baseDirectory: baseDirectory,
+      rootDirectoryName: 'capture',
+    );
   }
 }
 
@@ -115,34 +119,66 @@ void main() {
       await File(savedCharacters.first.transparentImagePath).exists(),
       isTrue,
     );
-    expect(
-      await File(savedCharacters.first.thumbnailPath).exists(),
-      isTrue,
-    );
+    expect(await File(savedCharacters.first.thumbnailPath).exists(), isTrue);
   });
 
-  test('returns warning when background is mostly transparent after removal', () async {
-    final whiteBackground = img.Image(width: 10, height: 10);
-    for (var y = 0; y < whiteBackground.height; y++) {
-      for (var x = 0; x < whiteBackground.width; x++) {
-        whiteBackground.setPixelRgba(x, y, 255, 255, 255, 255);
+  test(
+    'save usecase keeps transparent background in extracted thumbnail',
+    () async {
+      final repository = FakeCharacterRepository();
+      final useCase = SaveCharacterUseCase(
+        characterRepository: repository,
+        characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
+      );
+
+      await useCase.call(sourceImagePath: sourceImagePath);
+
+      final savedCharacter = (await repository.getCharacters()).single;
+      final thumbnail = img.decodeImage(
+        await File(savedCharacter.thumbnailPath).readAsBytes(),
+      )!;
+
+      expect(thumbnail.width, equals(200));
+      expect(
+        thumbnail.height,
+        equals((savedCharacter.height * 200 / savedCharacter.width).round()),
+      );
+      expect(thumbnail.getPixel(0, 0).a.round(), equals(0));
+      expect(
+        thumbnail
+            .getPixel(thumbnail.width ~/ 2, thumbnail.height ~/ 2)
+            .a
+            .round(),
+        greaterThan(0),
+      );
+    },
+  );
+
+  test(
+    'returns warning when background is mostly transparent after removal',
+    () async {
+      final whiteBackground = img.Image(width: 10, height: 10);
+      for (var y = 0; y < whiteBackground.height; y++) {
+        for (var x = 0; x < whiteBackground.width; x++) {
+          whiteBackground.setPixelRgba(x, y, 255, 255, 255, 255);
+        }
       }
-    }
-    final source = File('${tempDirectory.path}/white.png');
-    await source.writeAsBytes(img.encodePng(whiteBackground));
+      final source = File('${tempDirectory.path}/white.png');
+      await source.writeAsBytes(img.encodePng(whiteBackground));
 
-    final repository = FakeCharacterRepository();
-    final useCase = SaveCharacterUseCase(
-      characterRepository: repository,
-      characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
-    );
+      final repository = FakeCharacterRepository();
+      final useCase = SaveCharacterUseCase(
+        characterRepository: repository,
+        characterStoragePathFactory: TestStoragePathFactory(tempDirectory),
+      );
 
-    final result = await useCase.call(sourceImagePath: source.path);
+      final result = await useCase.call(sourceImagePath: source.path);
 
-    expect(result.characterId, 1);
-    expect(result.qualityWarningMessage, isNotNull);
-    expect(result.qualityWarningMessage, isNotEmpty);
-  });
+      expect(result.characterId, 1);
+      expect(result.qualityWarningMessage, isNotNull);
+      expect(result.qualityWarningMessage, isNotEmpty);
+    },
+  );
 
   test('throws when source image is missing', () async {
     final repository = FakeCharacterRepository();
@@ -152,7 +188,8 @@ void main() {
     );
 
     await expectLater(
-      () => useCase.call(sourceImagePath: '${tempDirectory.path}/not-found.png'),
+      () =>
+          useCase.call(sourceImagePath: '${tempDirectory.path}/not-found.png'),
       throwsA(isA<StateError>()),
     );
   });

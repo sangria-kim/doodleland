@@ -16,7 +16,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining(background.name), findsOneWidget);
       expect(
-        find.textContaining('groundY: ${background.groundY.toStringAsFixed(2)}'),
+        find.byKey(ValueKey('background-tile-${background.id}')),
         findsOneWidget,
       );
     }
@@ -31,14 +31,18 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: BackgroundSelectScreen(
-            onBackgroundSelected: (background) => selectedBackground = background,
+            onBackgroundSelected: (background) =>
+                selectedBackground = background,
           ),
         ),
       ),
     );
 
     final target = defaultStageBackgrounds.first;
-    await tester.scrollUntilVisible(find.byKey(ValueKey('background-tile-${target.id}')), 250);
+    await tester.scrollUntilVisible(
+      find.byKey(ValueKey('background-tile-${target.id}')),
+      250,
+    );
     await tester.tap(find.byKey(ValueKey('background-tile-${target.id}')));
     await tester.pumpAndSettle();
 

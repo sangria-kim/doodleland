@@ -13,6 +13,8 @@ class PlacedCharacter {
     required this.characterName,
     required this.transparentImagePath,
     required this.thumbnailPath,
+    required this.sourceWidth,
+    required this.sourceHeight,
     required this.motionPreset,
     required this.touchPreset,
     required this.position,
@@ -25,6 +27,8 @@ class PlacedCharacter {
   final String characterName;
   final String transparentImagePath;
   final String thumbnailPath;
+  final int sourceWidth;
+  final int sourceHeight;
   final MotionPreset motionPreset;
   final TouchPreset touchPreset;
   final Offset position;
@@ -37,6 +41,8 @@ class PlacedCharacter {
     String? characterName,
     String? transparentImagePath,
     String? thumbnailPath,
+    int? sourceWidth,
+    int? sourceHeight,
     MotionPreset? motionPreset,
     TouchPreset? touchPreset,
     Offset? position,
@@ -49,6 +55,8 @@ class PlacedCharacter {
       characterName: characterName ?? this.characterName,
       transparentImagePath: transparentImagePath ?? this.transparentImagePath,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      sourceWidth: sourceWidth ?? this.sourceWidth,
+      sourceHeight: sourceHeight ?? this.sourceHeight,
       motionPreset: motionPreset ?? this.motionPreset,
       touchPreset: touchPreset ?? this.touchPreset,
       position: position ?? this.position,

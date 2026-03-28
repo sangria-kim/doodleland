@@ -255,11 +255,20 @@ class _CharacterCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               _CheckerboardTile(
-                child: Image.file(
-                  File(character.thumbnailPath),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, _, __) => const Icon(Icons.image),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: character.width.toDouble(),
+                      height: character.height.toDouble(),
+                      child: Image.file(
+                        File(character.thumbnailPath),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, _, __) => const Icon(Icons.image),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox.shrink(),

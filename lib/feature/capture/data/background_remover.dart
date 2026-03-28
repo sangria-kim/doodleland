@@ -10,10 +10,16 @@ class BackgroundRemovalResult {
   const BackgroundRemovalResult({
     required this.transparentAreaRatio,
     this.qualityWarningMessage,
+    required this.transparentWidth,
+    required this.transparentHeight,
+    this.wasTrimmed = false,
   });
 
   final double transparentAreaRatio;
   final String? qualityWarningMessage;
+  final int transparentWidth;
+  final int transparentHeight;
+  final bool wasTrimmed;
 }
 
 class BackgroundRemover {
@@ -24,6 +30,7 @@ class BackgroundRemover {
     required String destinationImagePath,
     int maxDimension = 1500,
     int colorThreshold = 32,
+    bool trimToForeground = true,
   }) async {
     final sourceFile = File(sourceImagePath);
     if (!await sourceFile.exists()) {
@@ -36,6 +43,7 @@ class BackgroundRemover {
         sourceBytes: bytes,
         maxDimension: maxDimension,
         colorThreshold: colorThreshold,
+        trimToForeground: trimToForeground,
       ),
     );
 
@@ -45,6 +53,9 @@ class BackgroundRemover {
     return BackgroundRemovalResult(
       transparentAreaRatio: result.transparentAreaRatio,
       qualityWarningMessage: result.qualityWarningMessage,
+      transparentWidth: result.transparentWidth,
+      transparentHeight: result.transparentHeight,
+      wasTrimmed: result.wasTrimmed,
     );
   }
 
@@ -64,22 +75,19 @@ class BackgroundRemover {
     );
   }
 
-  static ({int r, int g, int b}) _sampleEdgeColor(img.Image image) {
+  static _EdgeProfile _sampleEdgeProfile(img.Image image) {
     final width = image.width;
     final height = image.height;
     final step = max(1, max(width, height) ~/ 24);
-
-    int totalR = 0;
-    int totalG = 0;
-    int totalB = 0;
-    int count = 0;
+    final samples = <({int r, int g, int b})>[];
 
     void sample(int x, int y) {
       final pixel = image.getPixel(x, y);
-      totalR += (pixel.r).round();
-      totalG += (pixel.g).round();
-      totalB += (pixel.b).round();
-      count += 1;
+      samples.add((
+        r: pixel.r.round(),
+        g: pixel.g.round(),
+        b: pixel.b.round(),
+      ));
     }
 
     for (var x = 0; x < width; x += step) {
@@ -91,19 +99,44 @@ class BackgroundRemover {
       sample(width - 1, y);
     }
 
-    if (count == 0) {
+    if (samples.isEmpty) {
       final pixel = image.getPixel(0, 0);
-      return (
+      return _EdgeProfile(
         r: (pixel.r).round(),
         g: (pixel.g).round(),
         b: (pixel.b).round(),
+        recommendedThreshold: 32,
       );
     }
 
-    return (
-      r: totalR ~/ count,
-      g: totalG ~/ count,
-      b: totalB ~/ count,
+    int median(List<int> values) {
+      values.sort();
+      return values[values.length ~/ 2];
+    }
+
+    final medianR = median(samples.map((sample) => sample.r).toList());
+    final medianG = median(samples.map((sample) => sample.g).toList());
+    final medianB = median(samples.map((sample) => sample.b).toList());
+
+    final distances = samples
+        .map(
+          (sample) => sqrt(
+            pow(sample.r - medianR, 2) +
+                pow(sample.g - medianG, 2) +
+                pow(sample.b - medianB, 2),
+          ),
+        )
+        .toList()
+      ..sort();
+    final variationDistance =
+        distances[((distances.length - 1) * 0.9).round()];
+
+    return _EdgeProfile(
+      r: medianR,
+      g: medianG,
+      b: medianB,
+      recommendedThreshold:
+          variationDistance.round().clamp(32, 120) + 12,
     );
   }
 
@@ -242,7 +275,7 @@ class BackgroundRemover {
     final visited = List<bool>.filled(total, false);
     final queue = ListQueue<int>();
     final cleaned = List<bool>.filled(total, false);
-    final minComponentSize = (total * 0.0012).clamp(12, 200).round();
+    final minComponentSize = (total * 0.00015).clamp(6, 64).round();
 
     for (var start = 0; start < total; start++) {
       if (!foregroundMask[start] || visited[start]) {
@@ -314,17 +347,85 @@ class _BackgroundRemovalResult {
     required this.pngBytes,
     required this.transparentAreaRatio,
     this.qualityWarningMessage,
+    required this.transparentWidth,
+    required this.transparentHeight,
+    this.wasTrimmed = false,
   });
 
   final List<int> pngBytes;
   final double transparentAreaRatio;
   final String? qualityWarningMessage;
+  final int transparentWidth;
+  final int transparentHeight;
+  final bool wasTrimmed;
+}
+
+class _EdgeProfile {
+  const _EdgeProfile({
+    required this.r,
+    required this.g,
+    required this.b,
+    required this.recommendedThreshold,
+  });
+
+  final int r;
+  final int g;
+  final int b;
+  final int recommendedThreshold;
+}
+
+class _MaskSelection {
+  const _MaskSelection({
+    required this.alphaValues,
+    required this.transparentAreaRatio,
+  });
+
+  final List<int> alphaValues;
+  final double transparentAreaRatio;
+}
+
+({int minX, int minY, int maxX, int maxY, bool hasForeground})
+    _findForegroundBounds(List<bool> mask, int width, int height) {
+  var minX = width;
+  var minY = height;
+  var maxX = -1;
+  var maxY = -1;
+
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final index = y * width + x;
+      if (!mask[index]) {
+        continue;
+      }
+      if (x < minX) {
+        minX = x;
+      }
+      if (x > maxX) {
+        maxX = x;
+      }
+      if (y < minY) {
+        minY = y;
+      }
+      if (y > maxY) {
+        maxY = y;
+      }
+    }
+  }
+
+  return (
+    minX: minX,
+    minY: minY,
+    maxX: maxX,
+    maxY: maxY,
+    hasForeground: maxX >= 0 && maxY >= 0,
+  );
 }
 
 _BackgroundRemovalResult _removeBackgroundInIsolate({
   required Uint8List sourceBytes,
   required int maxDimension,
   required int colorThreshold,
+  required bool trimToForeground,
 }) {
   final source = img.decodeImage(sourceBytes);
   if (source == null) {
@@ -332,31 +433,21 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
   }
 
   final resized = BackgroundRemover._resizeForProcessing(source, maxDimension);
-  final background = BackgroundRemover._sampleEdgeColor(resized);
-  final backgroundThresholdSq = colorThreshold * colorThreshold;
-  final floodFillThresholdSq = (colorThreshold + 12) * (colorThreshold + 12);
-  final initialForegroundMask = BackgroundRemover._buildForegroundMask(
+  final background = BackgroundRemover._sampleEdgeProfile(resized);
+  final alphaSelection = _selectForegroundMask(
     resized,
     backgroundR: background.r,
     backgroundG: background.g,
     backgroundB: background.b,
-    thresholdSquared: backgroundThresholdSq,
+    baseThreshold: max(colorThreshold, background.recommendedThreshold),
   );
-  final cleanedForegroundMask = BackgroundRemover._removeBackgroundLeakage(
-    resized,
-    initialMask: initialForegroundMask,
-    backgroundR: background.r,
-    backgroundG: background.g,
-    backgroundB: background.b,
-    floodFillThresholdSquared: floodFillThresholdSq,
-  );
-  final alphaMask = BackgroundRemover._removeNoiseByComponent(
-    resized.width,
-    resized.height,
-    cleanedForegroundMask,
-  );
+  final alphaValues = alphaSelection.alphaValues;
 
-  final outputImage = img.Image(width: resized.width, height: resized.height);
+  final outputImage = img.Image(
+    width: resized.width,
+    height: resized.height,
+    numChannels: 4,
+  );
   final totalPixels = resized.width * resized.height;
   var transparentPixels = 0;
 
@@ -364,8 +455,8 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     for (var x = 0; x < resized.width; x++) {
       final index = y * resized.width + x;
       final pixel = resized.getPixel(x, y);
-      final alpha = alphaMask[index] ? 255 : 0;
-      if (!alphaMask[index]) {
+      final alpha = alphaValues[index];
+      if (alpha <= 8) {
         transparentPixels++;
       }
       outputImage.setPixelRgba(
@@ -379,12 +470,114 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     }
   }
 
-  final transparentAreaRatio = transparentPixels / totalPixels;
+  final transparentAreaRatio =
+      totalPixels == 0 ? 0.0 : alphaSelection.transparentAreaRatio;
+  final qualityWarningMessage = BackgroundRemover._qualityWarningMessage(
+    transparentAreaRatio,
+  );
+
+  if (!trimToForeground) {
+    return _BackgroundRemovalResult(
+      pngBytes: img.encodePng(outputImage),
+      transparentAreaRatio: transparentAreaRatio,
+      qualityWarningMessage: qualityWarningMessage,
+      transparentWidth: outputImage.width,
+      transparentHeight: outputImage.height,
+      wasTrimmed: false,
+    );
+  }
+
+  final bounds = _findForegroundBounds(
+    alphaValues.map((alpha) => alpha >= 32).toList(growable: false),
+    resized.width,
+    resized.height,
+  );
+  if (bounds.hasForeground) {
+    final trimmedWidth = bounds.maxX - bounds.minX + 1;
+    final trimmedHeight = bounds.maxY - bounds.minY + 1;
+    final trimmedImage = img.copyCrop(
+      outputImage,
+      x: bounds.minX,
+      y: bounds.minY,
+      width: trimmedWidth,
+      height: trimmedHeight,
+    );
+    return _BackgroundRemovalResult(
+      pngBytes: img.encodePng(trimmedImage),
+      transparentAreaRatio: transparentAreaRatio,
+      qualityWarningMessage: qualityWarningMessage,
+      transparentWidth: trimmedImage.width,
+      transparentHeight: trimmedImage.height,
+      wasTrimmed: true,
+    );
+  }
+
   return _BackgroundRemovalResult(
     pngBytes: img.encodePng(outputImage),
     transparentAreaRatio: transparentAreaRatio,
-    qualityWarningMessage: BackgroundRemover._qualityWarningMessage(
-      transparentAreaRatio,
-    ),
+    qualityWarningMessage: qualityWarningMessage,
+    transparentWidth: outputImage.width,
+    transparentHeight: outputImage.height,
+    wasTrimmed: false,
+  );
+}
+
+_MaskSelection _selectForegroundMask(
+  img.Image image, {
+  required int backgroundR,
+  required int backgroundG,
+  required int backgroundB,
+  required int baseThreshold,
+}) {
+  final totalPixels = image.width * image.height;
+  final backgroundLuma = (backgroundR + backgroundG + backgroundB) / 3.0;
+  final lowThreshold = max(24, (baseThreshold * 0.95).round());
+  final highThreshold = max(lowThreshold + 18, (baseThreshold * 2.2).round());
+  final alphaValues = List<int>.filled(totalPixels, 0);
+  var transparentPixels = 0;
+
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      final index = y * image.width + x;
+      final pixel = image.getPixel(x, y);
+      final red = pixel.r.round();
+      final green = pixel.g.round();
+      final blue = pixel.b.round();
+      final colorDistance = sqrt(
+        pow(red - backgroundR, 2) +
+            pow(green - backgroundG, 2) +
+            pow(blue - backgroundB, 2),
+      );
+      final channelMax = max(red, max(green, blue));
+      final channelMin = min(red, min(green, blue));
+      final saturation = channelMax - channelMin;
+      final luminance = (red + green + blue) / 3.0;
+      final darkness = max(0.0, backgroundLuma - luminance);
+      final inkScore = max(
+        colorDistance,
+        darkness * 1.35 + saturation * 0.65,
+      );
+
+      final alpha = inkScore <= lowThreshold
+          ? 0
+          : inkScore >= highThreshold
+              ? 255
+              : (pow(
+                    (inkScore - lowThreshold) /
+                        (highThreshold - lowThreshold),
+                    1.6,
+                  ) *
+                  255)
+                  .round();
+      alphaValues[index] = alpha;
+      if (alpha <= 8) {
+        transparentPixels++;
+      }
+    }
+  }
+
+  return _MaskSelection(
+    alphaValues: alphaValues,
+    transparentAreaRatio: totalPixels == 0 ? 0.0 : transparentPixels / totalPixels,
   );
 }

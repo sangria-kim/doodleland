@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../domain/model/placed_character.dart';
 import '../domain/model/motion_preset.dart';
 import 'stage_viewmodel.dart';
@@ -44,17 +43,14 @@ class _StageScreenState extends ConsumerState<StageScreen> {
       _showControls = true;
     });
     _controlTimer?.cancel();
-    _controlTimer = Timer(
-      _controlHideDelay,
-      () {
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _showControls = false;
-        });
-      },
-    );
+    _controlTimer = Timer(_controlHideDelay, () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showControls = false;
+      });
+    });
   }
 
   @override
@@ -111,9 +107,9 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                               final message = removed
                                   ? '무대에서 제거했어요.'
                                   : '제거하지 못했어요.';
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(message)),
-                              );
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text(message)));
                             }
                           },
                         ),
@@ -150,11 +146,11 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                     Text(
                       '무대에 배치된 캐릭터: ${state.placedCharacters.length} / 10',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            shadows: const [
-                              Shadow(color: Colors.black54, blurRadius: 2),
-                            ],
-                          ),
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(color: Colors.black54, blurRadius: 2),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     if (state.errorMessage != null)
@@ -166,8 +162,9 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                           title: Text(state.errorMessage!),
                           trailing: IconButton(
                             icon: const Icon(Icons.close),
-                            onPressed:
-                                ref.read(stageViewModelProvider.notifier).clearError,
+                            onPressed: ref
+                                .read(stageViewModelProvider.notifier)
+                                .clearError,
                           ),
                         ),
                       ),
@@ -186,11 +183,12 @@ class _StageScreenState extends ConsumerState<StageScreen> {
           child: Tooltip(
             message: state.isFull ? '무대가 꽉 찼어요!' : '그림 추가',
             child: FloatingActionButton(
-              onPressed:
-                  state.isFull ? null : () {
-                    _showControlsForAWhile();
-                    _openCharacterSelector(context);
-                  },
+              onPressed: state.isFull
+                  ? null
+                  : () {
+                      _showControlsForAWhile();
+                      _openCharacterSelector(context);
+                    },
               child: const Icon(Icons.add),
             ),
           ),
@@ -211,7 +209,9 @@ class _StageScreenState extends ConsumerState<StageScreen> {
       return;
     }
 
-    final isAdded = await ref.read(stageViewModelProvider.notifier).placeCharacter(
+    final isAdded = await ref
+        .read(stageViewModelProvider.notifier)
+        .placeCharacter(
           character: selection.character,
           motionPreset: selection.motion,
         );
@@ -221,7 +221,9 @@ class _StageScreenState extends ConsumerState<StageScreen> {
     }
 
     final message = isAdded ? '무대에 등장했어요.' : '무대에 추가하지 못했어요.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -259,7 +261,9 @@ class _PlacedCharactersStage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        for (final placed in [...placedCharacters]..sort((a, b) => a.zIndex.compareTo(b.zIndex)))
+        for (final placed in [
+          ...placedCharacters,
+        ]..sort((a, b) => a.zIndex.compareTo(b.zIndex)))
           _InteractivePlacedCharacter(
             key: ValueKey(placed.instanceId),
             placed: placed,
@@ -297,7 +301,8 @@ class _InteractivePlacedCharacter extends StatefulWidget {
       _InteractivePlacedCharacterState();
 }
 
-class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter>
+class _InteractivePlacedCharacterState
+    extends State<_InteractivePlacedCharacter>
     with TickerProviderStateMixin {
   late final AnimationController _entryController;
   late final Animation<double> _entryScale;
@@ -318,15 +323,17 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     );
     _entryScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: 1.2).chain(
-          CurveTween(curve: Curves.easeOut),
-        ),
+        tween: Tween(
+          begin: 0.0,
+          end: 1.2,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 45,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.2, end: 1.0).chain(
-          CurveTween(curve: Curves.easeIn),
-        ),
+        tween: Tween(
+          begin: 1.2,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 55,
       ),
     ]).animate(_entryController);
@@ -337,15 +344,17 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     );
     _bounceScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.12).chain(
-          CurveTween(curve: Curves.easeOut),
-        ),
+        tween: Tween(
+          begin: 1.0,
+          end: 1.12,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.12, end: 1.0).chain(
-          CurveTween(curve: Curves.easeIn),
-        ),
+        tween: Tween(
+          begin: 1.12,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 50,
       ),
     ]).animate(_bounceController);
@@ -356,12 +365,7 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     _motionPhase = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _motionController,
-        curve: Curves.linear,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _motionController, curve: Curves.linear));
 
     _entryController.forward();
     _startMotionAnimation();
@@ -455,16 +459,17 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
   }
 
   Offset _clampPosition(Offset position) {
-    return Offset(
-      position.dx.clamp(0.0, 1.0),
-      position.dy.clamp(0.0, 1.0),
-    );
+    return Offset(position.dx.clamp(0.0, 1.0), position.dy.clamp(0.0, 1.0));
   }
 
   Offset _motionOffset() {
     final wave = math.sin(_motionPhase.value * math.pi * 2);
-    final stageHeight = widget.stageSize.height <= 0 ? 1.0 : widget.stageSize.height;
-    final stageWidth = widget.stageSize.width <= 0 ? 1.0 : widget.stageSize.width;
+    final stageHeight = widget.stageSize.height <= 0
+        ? 1.0
+        : widget.stageSize.height;
+    final stageWidth = widget.stageSize.width <= 0
+        ? 1.0
+        : widget.stageSize.width;
     final floatingOffsetY = 20 / stageHeight;
     final bouncingOffsetY = 40 / stageHeight;
     final glidingOffsetX = 60 / stageWidth;
@@ -495,7 +500,11 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
     return Align(
       alignment: Alignment(x * 2 - 1, y * 2 - 1),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_entryScale, _bounceScale, _motionController]),
+        animation: Listenable.merge([
+          _entryScale,
+          _bounceScale,
+          _motionController,
+        ]),
         builder: (context, child) {
           final motionOffset = _motionOffset();
           final motionRotation = _motionRotation();
@@ -506,10 +515,7 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
                 motionOffset.dx * widget.stageSize.width,
                 motionOffset.dy * widget.stageSize.height,
               ),
-              child: Transform.rotate(
-                angle: motionRotation,
-                child: child,
-              ),
+              child: Transform.rotate(angle: motionRotation, child: child),
             ),
           );
         },
@@ -532,56 +538,34 @@ class _InteractivePlacedCharacterState extends State<_InteractivePlacedCharacter
 class _PlacedCharacterBubble extends StatelessWidget {
   const _PlacedCharacterBubble({required this.placed});
 
+  static const double _maxDisplaySize = 120;
+
   final PlacedCharacter placed;
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 120,
-      height: 120,
-      child: Card(
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.file(
-              File(placed.transparentImagePath),
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Center(
-                child: Icon(Icons.image_not_supported),
-              ),
-            ),
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: 8,
-              child: _PlacedCharacterInfo(placed: placed),
-            ),
-          ],
-        ),
-      ),
-    );
+  Size _displaySize() {
+    final sourceWidth = placed.sourceWidth <= 0
+        ? 1.0
+        : placed.sourceWidth.toDouble();
+    final sourceHeight = placed.sourceHeight <= 0
+        ? 1.0
+        : placed.sourceHeight.toDouble();
+    final longestEdge = math.max(sourceWidth, sourceHeight);
+    final scale = _maxDisplaySize / longestEdge;
+
+    return Size(sourceWidth * scale, sourceHeight * scale);
   }
-}
-
-class _PlacedCharacterInfo extends StatelessWidget {
-  const _PlacedCharacterInfo({required this.placed});
-
-  final PlacedCharacter placed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      child: Text(
-        '${placed.characterName} / ${placed.motionPreset.label}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.white),
+    final displaySize = _displaySize();
+    return SizedBox(
+      width: displaySize.width,
+      height: displaySize.height,
+      child: Image.file(
+        File(placed.transparentImagePath),
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+            const Center(child: Icon(Icons.image_not_supported)),
       ),
     );
   }

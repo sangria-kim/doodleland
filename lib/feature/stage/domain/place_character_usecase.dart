@@ -23,6 +23,8 @@ class PlaceCharacterUseCase {
       characterName: character.name,
       transparentImagePath: character.transparentImagePath,
       thumbnailPath: character.thumbnailPath,
+      sourceWidth: character.width,
+      sourceHeight: character.height,
       motionPreset: motionPreset,
       touchPreset: TouchPreset.defaultBounce,
       position: Offset(0.5, normalizedGroundY.clamp(0.0, 1.0)),

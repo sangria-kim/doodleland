@@ -29,12 +29,9 @@ class SaveCharacterUseCase {
     }
 
     final bytes = await source.readAsBytes();
-    final decodedImage = image.decodeImage(bytes);
-    if (decodedImage == null) {
+    if (image.decodeImage(bytes) == null) {
       throw StateError('이미지 디코드에 실패했습니다.');
     }
-    final width = decodedImage.width;
-    final height = decodedImage.height;
 
     final storagePaths = await _characterStoragePathFactory.create();
     final originalImagePath = await storagePaths.originalImagePath();
@@ -45,9 +42,11 @@ class SaveCharacterUseCase {
     final removalResult = await _backgroundRemover.removeBackground(
       sourceImagePath: sourceImagePath,
       destinationImagePath: transparentImagePath,
+      trimToForeground: false,
     );
+    final transparentBytes = await File(transparentImagePath).readAsBytes();
     await _saveThumbnailImage(
-      sourceImageBytes: bytes,
+      sourceImageBytes: transparentBytes,
       destinationImagePath: thumbnailPath,
     );
 
@@ -56,8 +55,8 @@ class SaveCharacterUseCase {
       originalImagePath: originalImagePath,
       transparentImagePath: transparentImagePath,
       thumbnailPath: thumbnailPath,
-      width: width,
-      height: height,
+      width: removalResult.transparentWidth,
+      height: removalResult.transparentHeight,
     );
 
     return SaveCharacterResult(
