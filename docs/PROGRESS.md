@@ -29,6 +29,13 @@
 
 ## 📝 커밋 로그
 
+### 2026-03-30
+
+#### ui: align capture entry screen with app bar navigation (`commit: c5f0e30`)
+- 그림 가져오기 화면에 AppBar를 추가해 뒤로가기 동선을 명확히 노출했습니다.
+- 배경 고르기 화면과 동일한 상단 구조를 맞춰 화면 간 내비게이션 일관성을 정비했습니다.
+- 기존 캡처 선택/크롭/미리보기 처리 플로우는 건드리지 않고 진입 구조만 정리했습니다.
+
 ### 2026-03-29
 
 #### docs: record stage setup ui merge in progress log (`commit: 937475c`)
