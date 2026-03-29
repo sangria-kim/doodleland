@@ -4,13 +4,12 @@
 
 | 카테고리 | 진행률 | 상태 |
 |---------|-------|------|
-| **아키텍처 & 기초 설정** | 50% | ✅ |
-| **UI 컴포넌트** | 80% | 🔄 |
-| **드로잉 엔진** | 0% | 🔄 |
+| **아키텍처 & 공통 인프라** | 90% | ✅ |
+| **캡처 & 저장 플로우** | 85% | 🔄 |
+| **라이브러리** | 85% | 🔄 |
+| **스테이지 & 애니메이션** | 85% | 🔄 |
 | **배경 제거 (규칙 기반)** | 100% | ✅ |
-| **애니메이션 & 스테이지** | 80% | 🔄 |
-| **데이터베이스 (Drift)** | 100% | ✅ |
-| **테스트 & 배포** | 100% | ✅ |
+| **테스트 & 배포** | 90% | ✅ |
 
 ---
 
@@ -23,8 +22,8 @@
 - 없음
 
 **다음 예정 작업**
-- 그림 고유의 모션 + 화면을 움직이는 모션 두가지로 재정의 후 적용
-- 전체 앱 UI 리디자인
+- 저장 전 화면과 실제 배경 제거 결과 표시 흐름을 정합화
+- placeholder 파일(`image_processor.dart`, `stage_painter.dart`, `background_selector.dart`) 정리
 
 ---
 
@@ -32,15 +31,27 @@
 
 ### 2026-03-29
 
+#### docs: record stage setup ui merge in progress log (`commit: 937475c`)
+- `fc9249a` 스쿼시 머지 내용을 PROGRESS 로그에 반영해 최신 main 히스토리와 문서 상태를 다시 맞췄습니다.
+- 스테이지 설정 UI 개편 이후 진행률과 현재 상태가 앞선 문서 기록과 어긋나지 않도록 정리했습니다.
+
 #### ui: streamline stage setup and character selection flow (`commit: fc9249a`)
 - 배경 고르기와 그림 가져오기 화면에서 중복 안내 문구를 제거해 타이틀 중심 구조로 정리했습니다.
 - 캐릭터 선택 시트를 반응형 2단계 레이아웃으로 재구성하고 모션 선택 카드를 설명형 UI로 개선했습니다.
 - 그림 선택 카드의 비율과 제목 영역을 조정해 overflow 없이 안정적으로 보이도록 다듬고 버전을 `1.3.0+10300`으로 상향했습니다.
 
+#### docs: update progress log for fullscreen merge (`commit: f5f1be2`)
+- 가로 고정 및 전체화면 공통 정책 반영 내역을 PROGRESS에 추가해 문서 로그 누락을 보완했습니다.
+- 최신 main 커밋 순서에 맞춰 2026-03-29 기록을 재정렬하고 현재 상태 문맥을 정리했습니다.
+
 #### fix: keep capture flow in landscape fullscreen mode (`commit: fceca70`)
 - 갤러리 선택 뒤 네이티브 크롭 화면이 세로로 전환되던 문제를 Android 크롭 액티비티 방향 설정으로 수정했습니다.
 - 홈, 그림 가져오기, 크롭, 미리보기, 배경 고르기, 무대 화면의 전체화면 정책을 앱 루트에서 공통 관리하도록 리팩터링했습니다.
 - 저장 후 메인 복귀 시 전체화면이 풀리던 문제를 정리하고 버전을 `1.2.5+10205`로 상향했습니다.
+
+#### docs: record transparent character rendering merge (`commit: e856e88`)
+- 투명 PNG 유지 및 무대 렌더링 정리 머지 내용을 PROGRESS 로그에 추가했습니다.
+- 문서상 최신 기능 이력과 실제 main 커밋 목록이 일치하도록 누락 구간을 보강했습니다.
 
 #### fix: preserve transparent character rendering across capture and stage (`commit: 88ea325`)
 - 잘라낸 캐릭터의 투명 경계와 썸네일 비율을 유지해 저장 후에도 사각 배경이 남지 않도록 수정했습니다.
@@ -49,20 +60,36 @@
 
 ### 2026-03-28
 
+#### docs: record stage full-screen merge details (`commit: f77f017`)
+- 무대 전체화면 확장 머지 내역을 PROGRESS에 기록해 2026-03-28 문서 누락을 메웠습니다.
+- 커밋 로그가 실제 main 순서를 따르도록 상단 섹션의 정렬과 설명을 정비했습니다.
+
 #### ui: expand stage to full screen immersive (`commit: 3c4f8d2`)
 - 배경과 캐릭터 이동 가능한 무대 영역을 시스템 바까지 포함한 전체화면으로 확장했습니다.
 - 상단 앱바를 제거하고 오버레이 헤더를 유지해 조작은 그대로 둔 채 화면 경계 충돌을 해소했습니다.
 - `stage_screen`에서 상태바/네비게이션바 숨김을 적용해 무대 체감 영역을 최대로 확보했습니다.
+
+#### docs: sync progress after background asset squash merge (`commit: d35aea1`)
+- JPG 배경 자산 경로 복구 스쿼시 머지 결과를 PROGRESS에 반영했습니다.
+- 배경 선택 관련 진행률과 커밋 로그를 최신 main 기준으로 다시 맞췄습니다.
 
 #### fix: restore stage background rendering with jpg assets (`commit: cfd7c79`)
 - 무대 배경 선택 후 이미지가 보이지 않던 문제를 새 `bg_*.jpg` 자산 경로로 정리해 해결했습니다.
 - 배경 선택 카드에서 내부 기준값(`groundY`) 노출을 제거해 사용자 라벨을 간결하게 정리했습니다.
 - 스쿼시 머지 기준 PATCH 규칙에 맞춰 버전을 `1.2.3+10203`으로 상향했습니다.
 
+#### docs: sync progress after stage motion playback merge (`commit: 969d8ae`)
+- 스테이지 모션 재생 기능 머지 내용을 PROGRESS 로그에 추가했습니다.
+- 애니메이션 진행률과 현재 상태 표기가 실제 구현 시점과 맞물리도록 동기화했습니다.
+
 #### feat: add stage character motion playback (`commit: 2829e26`)
 - 캐릭터 배치 후 선택한 모션 프리셋이 무대에서 자동으로 재생되도록 애니메이션 경로를 연결했습니다.
 - 드래그/탭 인터랙션 시 모션을 일시 정지했다가 종료 후 자연스럽게 다시 재개되도록 반응 흐름을 정리했습니다.
 - 무대 상호작용 상태 변화가 애니메이션과 충돌하지 않도록 업데이트 경로를 정합했습니다.
+
+#### docs: log stage ticker crash merge in progress (`commit: ed6f1f1`)
+- ticker overflow 크래시 수정 머지 내역을 PROGRESS에 기록해 문서 추적 공백을 줄였습니다.
+- 2026-03-28 스테이지 관련 커밋의 문서/코드 짝을 맞춰 이후 이력 확인이 쉬워지도록 정리했습니다.
 
 #### fix: prevent stage placement ticker overflow crash (`commit: f062ded`)
 - 무대 캐릭터 배치 시 다중 AnimationController 사용으로 발생하던 ticker provider 크래시를 수정했습니다.
