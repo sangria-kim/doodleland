@@ -10,7 +10,10 @@ class CaptureScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const Scaffold(body: _CaptureScreenBody());
+    return Scaffold(
+      appBar: AppBar(title: Text('그림 가져오기')),
+      body: _CaptureScreenBody(),
+    );
   }
 }
 
@@ -34,7 +37,6 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
           final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
           final gap = _responsiveGap(constraints.maxHeight);
           final buttonFont = _responsiveButtonFont(constraints.maxHeight);
-          final titleFont = _responsiveTitleSize(constraints.maxHeight);
 
           return AnimatedPadding(
             duration: const Duration(milliseconds: 180),
@@ -47,21 +49,11 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '그림 가져오기',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    fontSize: titleFont,
-                    height: 1.1,
-                  ),
-                ),
-                SizedBox(height: gap),
-                if (state.hasFeedback) ...[
-                  _FeedbackBanner(message: state.feedbackMessage!),
-                  SizedBox(height: gap),
-                ],
+                children: [
+                  if (state.hasFeedback) ...[
+                    _FeedbackBanner(message: state.feedbackMessage!),
+                    SizedBox(height: gap),
+                  ],
                 const Spacer(),
                 SizedBox(
                   height: buttonHeight,
@@ -115,11 +107,6 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
   double _responsiveButtonFont(double screenHeight) {
     final density = _uiDensity(screenHeight);
     return (20 * density).clamp(12.0, 18.0);
-  }
-
-  double _responsiveTitleSize(double screenHeight) {
-    final density = _uiDensity(screenHeight);
-    return (36 * density).clamp(20.0, 36.0);
   }
 
   Future<void> _onPick(BuildContext context, CaptureImageSource source) async {
