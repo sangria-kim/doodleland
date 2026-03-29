@@ -44,14 +44,17 @@ class _CharacterSelectorState extends ConsumerState<CharacterSelector> {
     final state = ref.watch(libraryViewModelProvider);
     final mediaQuery = MediaQuery.of(context);
     final sheetHeight = math.min(
-      mediaQuery.size.height * 0.9,
-      mediaQuery.size.height - mediaQuery.padding.bottom - mediaQuery.padding.top,
+      mediaQuery.size.height * 0.92,
+      mediaQuery.size.height -
+          mediaQuery.padding.bottom -
+          mediaQuery.padding.top,
     );
+    final isSelectingCharacter = _selectedCharacter == null;
 
     if (state.isLoading && state.characters.isEmpty) {
       return SizedBox(
         height: sheetHeight,
-        child: Center(child: CircularProgressIndicator()),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -64,67 +67,60 @@ class _CharacterSelectorState extends ConsumerState<CharacterSelector> {
           curve: Curves.easeOut,
           padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '그림을 골라봐!',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                if (state.characters.isEmpty) ...[
-                  if (state.errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        state.errorMessage!,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.red,
-                        ),
-                      ),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 880),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SheetHeader(
+                      title: isSelectingCharacter ? '그림을 골라봐!' : '움직임을 골라봐!',
+                      subtitle: isSelectingCharacter
+                          ? null
+                          : '미리보기와 설명을 보고 원하는 움직임을 고른 뒤 무대에 등장시켜요.',
                     ),
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '아직 그림이 없어요! 그림을 먼저 만들어볼까요?',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          FilledButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              context.push('/capture');
-                            },
-                            child: const Text('그림 만들기'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  if (_selectedCharacter == null)
+                    SizedBox(height: isSelectingCharacter ? 12 : 20),
                     Expanded(
-                      child: _CharacterSelectionList(
-                        state: state,
-                        onTap: (character) {
-                          ref
-                              .read(characterSelectorSheetControllerProvider.notifier)
-                              .selectMotion(MotionPreset.floating);
-                          setState(() {
-                            _selectedCharacter = character;
-                          });
-                        },
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: state.characters.isEmpty
+                            ? _EmptyCharacterState(
+                                key: const ValueKey('empty-state'),
+                                errorMessage: state.errorMessage,
+                              )
+                            : isSelectingCharacter
+                            ? _CharacterSelectionList(
+                                key: const ValueKey('character-list'),
+                                state: state,
+                                onTap: (character) {
+                                  ref
+                                      .read(
+                                        characterSelectorSheetControllerProvider
+                                            .notifier,
+                                      )
+                                      .selectMotion(MotionPreset.floating);
+                                  setState(() {
+                                    _selectedCharacter = character;
+                                  });
+                                },
+                              )
+                            : _MotionSelectionSheet(
+                                key: ValueKey(_selectedCharacter!.id),
+                                character: _selectedCharacter!,
+                                onBack: () {
+                                  setState(() {
+                                    _selectedCharacter = null;
+                                  });
+                                },
+                              ),
                       ),
-                    )
-                  else
-                    Expanded(child: _MotionSelectionSheet(character: _selectedCharacter!)),
-                ],
-              ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -135,6 +131,7 @@ class _CharacterSelectorState extends ConsumerState<CharacterSelector> {
 
 class _CharacterSelectionList extends StatelessWidget {
   const _CharacterSelectionList({
+    super.key,
     required this.state,
     required this.onTap,
   });
@@ -144,115 +141,142 @@ class _CharacterSelectionList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: EdgeInsets.only(bottom: AppSpacing.sectionGap),
-      scrollDirection: Axis.horizontal,
-      itemCount: state.characters.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.8,
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
-      itemBuilder: (context, index) {
-        final character = state.characters[index];
-        final isDeleting = state.deletingCharacterId == character.id;
-        return _CharacterCard(
-          character: character,
-          isDeleting: isDeleting,
-          onTap: onTap,
-        );
-      },
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final crossAxisCount = switch (constraints.maxWidth) {
+              >= 760 => 4,
+              >= 520 => 3,
+              _ => 2,
+            };
+            final childAspectRatio = constraints.maxWidth >= 760 ? 0.8 : 0.76;
+
+            return GridView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: state.characters.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemBuilder: (context, index) {
+                final character = state.characters[index];
+                final isDeleting = state.deletingCharacterId == character.id;
+                return _CharacterCard(
+                  character: character,
+                  isDeleting: isDeleting,
+                  onTap: onTap,
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 }
 
 class _MotionSelectionSheet extends StatelessWidget {
-  const _MotionSelectionSheet({required this.character});
+  const _MotionSelectionSheet({
+    super.key,
+    required this.character,
+    required this.onBack,
+  });
 
   final Character character;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, _) {
         final state = ref.watch(characterSelectorSheetControllerProvider);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: SizedBox(
-                width: 88,
-                height: 88,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                  child: _CheckerboardTile(
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: FittedBox(
-                        fit: BoxFit.contain,
-                        child: SizedBox(
-                          width: character.width.toDouble(),
-                          height: character.height.toDouble(),
-                          child: Image.file(
-                            File(character.thumbnailPath),
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.image),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 720;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: isWide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 4,
+                                child: _CharacterPreviewPanel(
+                                  character: character,
+                                  selectedMotion: state,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 6,
+                                child: _MotionSelectionPanel(
+                                  selectedMotion: state,
+                                  onChanged: (motion) {
+                                    ref
+                                        .read(
+                                          characterSelectorSheetControllerProvider
+                                              .notifier,
+                                        )
+                                        .selectMotion(motion);
+                                  },
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _CharacterPreviewPanel(
+                                character: character,
+                                selectedMotion: state,
+                              ),
+                              const SizedBox(height: 16),
+                              _MotionSelectionPanel(
+                                selectedMotion: state,
+                                onChanged: (motion) {
+                                  ref
+                                      .read(
+                                        characterSelectorSheetControllerProvider
+                                            .notifier,
+                                      )
+                                      .selectMotion(motion);
+                                },
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '움직임을 선택한 뒤 등장하기를 눌러요',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(right: 2),
-                child: MotionSelector(
-                  selectedMotion: state,
-                  onChanged: (motion) {
-                    ref.read(characterSelectorSheetControllerProvider.notifier).selectMotion(
-                      motion,
+                const SizedBox(height: 16),
+                _SheetActionBar(
+                  onBack: onBack,
+                  onConfirm: () {
+                    Navigator.of(context).pop(
+                      CharacterPlacementSelection(
+                        character: character,
+                        motion: state,
+                      ),
                     );
                   },
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('뒤로가기'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(
-                        CharacterPlacementSelection(
-                          character: character,
-                          motion: state,
-                        ),
-                      );
-                    },
-                    child: const Text('등장하기'),
-                  ),
-                ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -272,6 +296,364 @@ final characterSelectorSheetControllerProvider =
       (ref) => CharacterSelectorSheetState(),
     );
 
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            height: 1.15,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            subtitle!,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _EmptyCharacterState extends StatelessWidget {
+  const _EmptyCharacterState({super.key, required this.errorMessage});
+
+  final String? errorMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.collections_outlined,
+                  size: 44,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '아직 그림이 없어요',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '그림을 먼저 만든 뒤 무대에 올려볼까요?',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    errorMessage!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.error,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      context.push('/capture');
+                    },
+                    child: const Text('그림 만들기'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CharacterPreviewPanel extends StatelessWidget {
+  const _CharacterPreviewPanel({
+    required this.character,
+    required this.selectedMotion,
+  });
+
+  final Character character;
+  final MotionPreset selectedMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: SizedBox(
+                width: 128,
+                height: 128,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  child: _CheckerboardTile(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: character.width.toDouble(),
+                          height: character.height.toDouble(),
+                          child: Image.file(
+                            File(character.thumbnailPath),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.image),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              character.name,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '현재 선택한 움직임',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              selectedMotion.label,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              selectedMotion.description,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MotionSelectionPanel extends StatelessWidget {
+  const _MotionSelectionPanel({
+    required this.selectedMotion,
+    required this.onChanged,
+  });
+
+  final MotionPreset selectedMotion;
+  final ValueChanged<MotionPreset> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '움직임을 선택해줘',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '움직임 설명을 읽고 카드 하나를 선택하면 바로 미리보기에 반영돼요.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 16),
+            MotionSelector(
+              selectedMotion: selectedMotion,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetActionBar extends StatelessWidget {
+  const _SheetActionBar({required this.onBack, required this.onConfirm});
+
+  final VoidCallback onBack;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final actionTextStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w800,
+    );
+
+    Widget buildButton({
+      required Widget child,
+      required VoidCallback onPressed,
+      required bool primary,
+    }) {
+      final button = primary
+          ? FilledButton(
+              onPressed: onPressed,
+              style: FilledButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 18,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                ),
+                textStyle: actionTextStyle,
+              ),
+              child: child,
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 18,
+                ),
+                foregroundColor: AppPalette.primaryDark,
+                side: BorderSide(color: colorScheme.outline),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                ),
+                textStyle: actionTextStyle,
+              ),
+              child: child,
+            );
+
+      return SizedBox(height: 72, child: button);
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: buildButton(
+                  onPressed: onBack,
+                  primary: false,
+                  child: const Text('그림 다시 고르기'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: buildButton(
+                  onPressed: onConfirm,
+                  primary: true,
+                  child: const Text('등장하기'),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: buildButton(
+                onPressed: onBack,
+                primary: false,
+                child: const Text('그림 다시 고르기'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: buildButton(
+                onPressed: onConfirm,
+                primary: true,
+                child: const Text('등장하기'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _CharacterCard extends StatelessWidget {
   const _CharacterCard({
     required this.character,
@@ -285,48 +667,75 @@ class _CharacterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.card),
-      child: Card(
+      child: Material(
+        color: colorScheme.surface,
         child: InkWell(
           onTap: isDeleting ? null : () => onTap(character),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              _CheckerboardTile(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width: character.width.toDouble(),
-                      height: character.height.toDouble(),
-                      child: Image.file(
-                        File(character.thumbnailPath),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, _, __) => const Icon(Icons.image),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: _CheckerboardTile(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: SizedBox(
+                            width: character.width.toDouble(),
+                            height: character.height.toDouble(),
+                            child: Image.file(
+                              File(character.thumbnailPath),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.image),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                left: 8,
-                right: 8,
-                bottom: 4,
-                child: Text(
-                  character.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.black87,
-                        shadows: const [
-                          Shadow(
-                            color: Colors.white,
-                            blurRadius: 2,
-                          ),
-                        ],
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      border: Border(
+                        top: BorderSide(color: colorScheme.outlineVariant),
                       ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        character.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                    ),
+                  ),
                 ),
               ),
               if (isDeleting)

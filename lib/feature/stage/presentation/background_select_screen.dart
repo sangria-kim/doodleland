@@ -17,32 +17,22 @@ class BackgroundSelectScreen extends ConsumerWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('무대 배경', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.2,
-                  ),
-                  itemCount: defaultStageBackgrounds.length,
-                  itemBuilder: (context, index) {
-                    final background = defaultStageBackgrounds[index];
-                    return _BackgroundCard(
-                      key: ValueKey(background.id),
-                      background: background,
-                      onTap: () =>
-                          _handleBackgroundTap(context, ref, background),
-                    );
-                  },
-                ),
-              ),
-            ],
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.2,
+            ),
+            itemCount: defaultStageBackgrounds.length,
+            itemBuilder: (context, index) {
+              final background = defaultStageBackgrounds[index];
+              return _BackgroundCard(
+                key: ValueKey(background.id),
+                background: background,
+                onTap: () => _handleBackgroundTap(context, ref, background),
+              );
+            },
           ),
         ),
       ),
@@ -92,7 +82,7 @@ class _BackgroundCard extends StatelessWidget {
                 background.assetPath,
                 fit: BoxFit.cover,
                 alignment: Alignment.bottomCenter,
-                errorBuilder: (context, _, __) {
+                errorBuilder: (context, error, stackTrace) {
                   return const ColoredBox(color: Colors.black12);
                 },
               ),
@@ -103,7 +93,7 @@ class _BackgroundCard extends StatelessWidget {
               bottom: 10,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Padding(

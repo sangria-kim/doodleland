@@ -35,7 +35,6 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
           final gap = _responsiveGap(constraints.maxHeight);
           final buttonFont = _responsiveButtonFont(constraints.maxHeight);
           final titleFont = _responsiveTitleSize(constraints.maxHeight);
-          final bodyFont = _responsiveBodySize(constraints.maxHeight);
 
           return AnimatedPadding(
             duration: const Duration(milliseconds: 180),
@@ -63,15 +62,6 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                   _FeedbackBanner(message: state.feedbackMessage!),
                   SizedBox(height: gap),
                 ],
-                Text(
-                  '카메라로 새로 찍거나 갤러리에서 기존 이미지를 선택해 다음 단계로 넘어갑니다.',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontSize: bodyFont,
-                    height: 1.2,
-                  ),
-                ),
                 const Spacer(),
                 SizedBox(
                   height: buttonHeight,
@@ -132,19 +122,14 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
     return (36 * density).clamp(20.0, 36.0);
   }
 
-  double _responsiveBodySize(double screenHeight) {
-    final density = _uiDensity(screenHeight);
-    return (18 * density).clamp(11.0, 18.0);
-  }
-
   Future<void> _onPick(BuildContext context, CaptureImageSource source) async {
     final selectedImage = await ref
         .read(captureViewModelProvider.notifier)
         .pickImage(source);
-    if (!mounted) return;
+    if (!context.mounted) return;
     if (selectedImage == null) return;
     ref.read(captureViewModelProvider.notifier).clearFeedback();
-    if (!mounted) return;
+    if (!context.mounted) return;
     context.push('/capture/crop', extra: selectedImage);
   }
 }
