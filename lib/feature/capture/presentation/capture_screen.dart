@@ -37,6 +37,8 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
           final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
           final gap = _responsiveGap(constraints.maxHeight);
           final buttonFont = _responsiveButtonFont(constraints.maxHeight);
+          final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
+          final buttonWidth = _responsiveButtonWidth(constraints.maxWidth, gap);
 
           return AnimatedPadding(
             duration: const Duration(milliseconds: 180),
@@ -49,33 +51,48 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (state.hasFeedback) ...[
-                    _FeedbackBanner(message: state.feedbackMessage!),
-                    SizedBox(height: gap),
-                  ],
-                const Spacer(),
-                SizedBox(
-                  height: buttonHeight,
-                  child: _SourceButton(
-                    label: '카메라로 찍기',
-                    icon: Icons.camera_alt,
-                    buttonFontSize: buttonFont,
-                    onPressed: state.isBusy
-                        ? null
-                        : () => _onPick(context, CaptureImageSource.camera),
-                  ),
-                ),
-                SizedBox(height: gap),
-                SizedBox(
-                  height: buttonHeight,
-                  child: _SourceButton(
-                    label: '갤러리에서 선택',
-                    icon: Icons.photo_library,
-                    buttonFontSize: buttonFont,
-                    onPressed: state.isBusy
-                        ? null
-                        : () => _onPick(context, CaptureImageSource.gallery),
+              children: [
+                if (state.hasFeedback) ...[
+                  _FeedbackBanner(message: state.feedbackMessage!),
+                  SizedBox(height: gap),
+                ],
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: buttonWidth,
+                            height: buttonHeight,
+                            child: _SourceButton(
+                              label: '카메라로 찍기',
+                              icon: Icons.camera_alt,
+                              buttonFontSize: buttonFont,
+                              buttonIconSize: buttonIconSize,
+                              onPressed: state.isBusy
+                                  ? null
+                                  : () => _onPick(context, CaptureImageSource.camera),
+                            ),
+                          ),
+                          SizedBox(width: gap),
+                          SizedBox(
+                            width: buttonWidth,
+                            height: buttonHeight,
+                            child: _SourceButton(
+                              label: '갤러리에서 선택',
+                              icon: Icons.photo_library,
+                              buttonFontSize: buttonFont,
+                              buttonIconSize: buttonIconSize,
+                              onPressed: state.isBusy
+                                  ? null
+                                  : () => _onPick(context, CaptureImageSource.gallery),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 if (state.isBusy) ...[
@@ -91,12 +108,12 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
   }
 
   double _uiDensity(double screenHeight) {
-    return (screenHeight / 620).clamp(0.68, 1.0);
+    return (screenHeight / 640).clamp(0.62, 1.0);
   }
 
   double _responsiveButtonHeight(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (52 * density).clamp(26.0, 52.0);
+    return (88 * density * 2).clamp(124.0, 196.0);
   }
 
   double _responsiveGap(double screenHeight) {
@@ -106,7 +123,17 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
 
   double _responsiveButtonFont(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (20 * density).clamp(12.0, 18.0);
+    return (30 * density).clamp(18.0, 30.0);
+  }
+
+  double _responsiveButtonWidth(double screenWidth, double gap) {
+    final available = (screenWidth - gap);
+    return (available * 0.35).clamp(180.0, 420.0);
+  }
+
+  double _responsiveIconSize(double screenHeight) {
+    final density = _uiDensity(screenHeight);
+    return (36 * density).clamp(21.0, 36.0);
   }
 
   Future<void> _onPick(BuildContext context, CaptureImageSource source) async {
@@ -127,35 +154,75 @@ class _SourceButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     required this.buttonFontSize,
+    required this.buttonIconSize,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
   final double buttonFontSize;
+  final double buttonIconSize;
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: onPressed,
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(1),
-        padding: EdgeInsets.symmetric(
-          vertical: (buttonFontSize * 0.45).clamp(4.0, 12.0),
-          horizontal: 12,
+    final isEnabled = onPressed != null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(30),
+        splashColor: AppPalette.primary.withOpacity(0.16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            color: isEnabled ? AppPalette.primary : const Color(0xFFC8CDD2),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.26),
+              width: 1.5,
+            ),
+            boxShadow: isEnabled
+                ? [
+                    BoxShadow(
+                      color: AppPalette.primary.withOpacity(0.26),
+                      blurRadius: 14,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: SizedBox.expand(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: buttonIconSize,
+                    color: isEnabled
+                        ? AppPalette.onPrimary
+                        : AppPalette.onPrimary.withOpacity(0.55),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isEnabled
+                          ? AppPalette.onPrimary
+                          : AppPalette.onPrimary.withOpacity(0.55),
+                      fontSize: buttonFontSize,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        textStyle: TextStyle(
-          fontSize: buttonFontSize,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: (buttonFontSize + 4).clamp(14.0, 24.0)),
-          const SizedBox(width: 12),
-          Text(label),
-        ],
       ),
     );
   }

@@ -22,7 +22,7 @@ class BackgroundSelectScreen extends ConsumerWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.2,
+              childAspectRatio: 1.714,
             ),
             itemCount: defaultStageBackgrounds.length,
             itemBuilder: (context, index) {

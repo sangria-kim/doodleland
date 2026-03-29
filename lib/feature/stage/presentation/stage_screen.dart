@@ -55,6 +55,11 @@ class _StageScreenState extends ConsumerState<StageScreen> {
         builder: (context, constraints) {
           final topPadding = MediaQuery.of(context).padding.top;
           final horizontalPadding = 16.0;
+          final overlayColor = Colors.black.withOpacity(0.36);
+          final overlayDecoration = BoxDecoration(
+            color: overlayColor,
+            borderRadius: BorderRadius.circular(18),
+          );
           return Stack(
             children: [
               GestureDetector(
@@ -111,58 +116,92 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                 left: horizontalPadding,
                 right: horizontalPadding,
                 top: topPadding + 12,
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => context.go('/'),
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.white,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => context.go('/stage/background'),
-                      icon: const Icon(Icons.image),
-                      color: Colors.white,
-                      tooltip: '배경 바꾸기',
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                left: horizontalPadding,
-                right: horizontalPadding,
-                top: topPadding + 64,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '무대에 배치된 캐릭터: ${state.placedCharacters.length} / 10',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        shadows: const [
-                          Shadow(color: Colors.black54, blurRadius: 2),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (state.errorMessage != null)
-                      Card(
-                        color: Colors.red.shade50,
-                        margin: EdgeInsets.zero,
-                        child: ListTile(
-                          leading: const Icon(Icons.warning_amber_outlined),
-                          title: Text(state.errorMessage!),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: ref
-                                .read(stageViewModelProvider.notifier)
-                                .clearError,
+                child: IgnorePointer(
+                  ignoring: !_showControls,
+                  child: AnimatedOpacity(
+                    opacity: _showControls ? 1 : 0,
+                    duration: const Duration(milliseconds: 420),
+                    child: Row(
+                      children: [
+                        DecoratedBox(
+                          decoration: overlayDecoration,
+                          child: IconButton(
+                            onPressed: () => context.go('/'),
+                            icon: const Icon(Icons.arrow_back),
+                            color: Colors.white,
+                            tooltip: '뒤로 가기',
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(40, 40),
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                        const SizedBox(width: 8),
+                        DecoratedBox(
+                          decoration: overlayDecoration,
+                          child: IconButton(
+                            onPressed: () => context.go('/stage/background'),
+                            icon: const Icon(Icons.image),
+                            color: Colors.white,
+                            tooltip: '배경 바꾸기',
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(40, 40),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        DecoratedBox(
+                          decoration: overlayDecoration,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: Text(
+                              '${state.placedCharacters.length}/10',
+                              style:
+                                  Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        color: Colors.white,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 2,
+                                          ),
+                                        ],
+                                      ) ??
+                                      const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                                      ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
+              if (state.errorMessage != null)
+                Positioned(
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  top: topPadding + 64,
+                  child: Card(
+                    color: Colors.red.shade50.withOpacity(0.9),
+                    margin: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: const Icon(Icons.warning_amber_outlined),
+                      title: Text(state.errorMessage!),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: ref
+                            .read(stageViewModelProvider.notifier)
+                            .clearError,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },

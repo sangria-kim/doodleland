@@ -20,9 +20,13 @@ class HomeScreen extends ConsumerWidget {
             final mediaQuery = MediaQuery.of(context);
             final titleFont = _responsiveTitleSize(constraints.maxHeight);
             final bodyFont = _responsiveBodySize(constraints.maxHeight);
-            final gap = _responsiveGap(constraints.maxHeight);
-            final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
-            final buttonFont = _responsiveButtonFont(constraints.maxHeight);
+                    final gap = _responsiveGap(constraints.maxHeight);
+                    final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
+                    final buttonWidth = _responsiveButtonWidth(
+                      constraints.maxWidth,
+                      gap,
+                    );
+                    final buttonFont = _responsiveButtonFont(constraints.maxHeight);
             final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
 
             return AnimatedPadding(
@@ -61,29 +65,42 @@ class HomeScreen extends ConsumerWidget {
                           height: 1.25,
                         ),
                       ),
-                      const Spacer(),
-                      SizedBox(
-                        height: buttonHeight,
-                        child: _HomeActionButton(
-                          label: '그림 만들기',
-                          icon: Icons.edit,
-                          buttonFontSize: buttonFont,
-                          iconSize: buttonIconSize,
-                          onPressed: () => context.push('/capture'),
-                        ),
-                      ),
-                      SizedBox(height: gap),
-                      SizedBox(
-                        height: buttonHeight,
-                        child: _HomeActionButton(
-                          label: '놀이 시작',
-                          icon: Icons.play_arrow,
-                          tonal: true,
-                          buttonFontSize: buttonFont,
-                          iconSize: buttonIconSize,
-                          onPressed: libraryState.isLoading
-                              ? null
-                              : () => _startStage(context, ref),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: buttonWidth,
+                                  height: buttonHeight,
+                                  child: _HomeActionButton(
+                                    label: '그림 만들기',
+                                    icon: Icons.edit,
+                                    buttonFontSize: buttonFont,
+                                    iconSize: buttonIconSize,
+                                    onPressed: () => context.push('/capture'),
+                                  ),
+                                ),
+                                SizedBox(width: gap),
+                                SizedBox(
+                                  width: buttonWidth,
+                                  height: buttonHeight,
+                                  child: _HomeActionButton(
+                                    label: '놀이 시작',
+                                    icon: Icons.play_arrow,
+                                    tonal: true,
+                                    buttonFontSize: buttonFont,
+                                    iconSize: buttonIconSize,
+                                    onPressed: libraryState.isLoading
+                                        ? null
+                                        : () => _startStage(context, ref),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -118,17 +135,22 @@ class HomeScreen extends ConsumerWidget {
 
   double _responsiveButtonHeight(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (64 * density).clamp(40.0, 64.0);
+    return (88 * density * 2).clamp(124.0, 196.0);
+  }
+
+  double _responsiveButtonWidth(double screenWidth, double gap) {
+    final available = screenWidth - gap;
+    return (available * 0.35).clamp(180.0, 420.0);
   }
 
   double _responsiveButtonFont(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (22 * density).clamp(13.0, 22.0);
+    return (30 * density).clamp(18.0, 30.0);
   }
 
   double _responsiveIconSize(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (28 * density).clamp(16.0, 28.0);
+    return (36 * density).clamp(21.0, 36.0);
   }
 
   Future<void> _startStage(BuildContext context, WidgetRef ref) async {
@@ -171,27 +193,60 @@ class _HomeActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = tonal
-        ? FilledButton.tonal(
-            onPressed: onPressed,
-            child: _HomeActionButtonContent(
-              icon: icon,
-              label: label,
-              buttonFontSize: buttonFontSize,
-              iconSize: iconSize,
-            ),
-          )
-        : FilledButton(
-            onPressed: onPressed,
-            child: _HomeActionButtonContent(
-              icon: icon,
-              label: label,
-              buttonFontSize: buttonFontSize,
-              iconSize: iconSize,
-            ),
-          );
+    final isEnabled = onPressed != null;
+    final isPrimary = !tonal;
+    final borderRadius = BorderRadius.circular(30);
+    final buttonBackground = isPrimary
+        ? AppPalette.primary
+        : const Color(0xFF53B4A0);
+    final buttonForeground = AppPalette.onPrimary;
+    final disabledBackground = isPrimary
+        ? const Color(0xFFC8CDD2)
+        : const Color(0xFFDDE3E6);
 
-    return button;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: borderRadius,
+        splashColor: AppPalette.primary.withOpacity(0.16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            color: isEnabled ? buttonBackground : disabledBackground,
+            border: Border.all(
+              color: isPrimary
+                  ? Colors.white.withOpacity(0.26)
+                  : Colors.white.withOpacity(0.30),
+              width: isPrimary ? 1.5 : 1.2,
+            ),
+            boxShadow: isEnabled
+                ? [
+                    BoxShadow(
+                      color: (isPrimary ? AppPalette.primary : AppPalette.textSecondary)
+                          .withOpacity(0.26),
+                      blurRadius: 14,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: SizedBox.expand(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: _HomeActionButtonContent(
+                icon: icon,
+                label: label,
+                buttonFontSize: buttonFontSize,
+                iconSize: iconSize,
+                color: buttonForeground.withOpacity(isEnabled ? 1 : 0.55),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -201,28 +256,32 @@ class _HomeActionButtonContent extends StatelessWidget {
     required this.label,
     required this.buttonFontSize,
     required this.iconSize,
+    required this.color,
   });
 
   final IconData icon;
   final String label;
   final double buttonFontSize;
   final double iconSize;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: iconSize),
-        const SizedBox(width: 16),
+        Icon(icon, size: iconSize, color: color),
+        const SizedBox(width: 18),
         Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
+            color: color,
             fontSize: buttonFontSize,
             fontWeight: FontWeight.w700,
             height: 1.2,
+            letterSpacing: -0.2,
           ),
         ),
       ],
