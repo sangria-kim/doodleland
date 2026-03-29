@@ -31,7 +31,7 @@
 
 ### 2026-03-30
 
-#### ui: refresh home capture stage navigation surfaces (`commit: 6154870`)
+#### ui: refresh home capture stage navigation surfaces (`commit: 0a6a8d5`)
 - 메인 화면의 버튼 배치·크기·단색 스타일을 반응형 기준으로 정렬해 일관된 상단 UI 톤을 맞췄습니다.
 - 그림 가져오기, 배경 선택, 놀이 화면 버튼/카운트 오버레이를 동일한 동작 감지 기준으로 정렬해 상호작용 통일감을 확보했습니다.
 - 배경 카드 비율과 무대 상단 컨트롤 자동 숨김 기능을 추가 반영하고 앱 버전을 `1.3.1+10301`으로 상향했습니다.
