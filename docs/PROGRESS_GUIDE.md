@@ -20,7 +20,7 @@
 
 ## 📝 커밋 로그
 ### [날짜 YYYY-MM-DD]
-#### [커밋 메시지] (`commit: [짧은 커밋ID]`)
+#### [커밋 메시지]
 - 구현 내용 1
 - 구현 내용 2
 - 구현 내용 3
@@ -30,36 +30,28 @@
 
 ## 🔄 업데이트 방법
 
-### **1단계: 작업 완료**
+### **1단계: 작업 완료 및 main 최신화**
 ```bash
 # feature branch 또는 별도 작업 환경에서 개발 완료
 git checkout main
 git pull  # 최신 상태 반영
 ```
 
-### **2단계: main 브랜치에 커밋 추가**
+### **2단계: squash merge 결과와 PROGRESS를 함께 준비**
 
-다음 중 하나의 방식으로 main에 커밋 추가:
+기능 작업은 아래 순서로 **하나의 squash merge commit**만 남기도록 정리합니다.
 
-**방식 A: squash merge (권장)**
 ```bash
 git merge --squash feature/[브랜치명]
-git commit -m "feat: 기능 설명"
-```
-
-**방식 B: 직접 커밋**
-```bash
-# 작업 완료 후 직접 커밋
+# docs/PROGRESS.md 업데이트
 git add .
-git commit -m "feat: 기능 설명"
+git commit
 ```
 
-**방식 C: 다른 도구/Agent 사용**
-- GitHub UI, GitLab UI 등을 통한 merge
-- 다른 CI/CD 파이프라인
-- 기타 git 관리 도구
-
-**중요**: 어떤 방식이든 **main 브랜치에 새로운 커밋이 추가되면** PROGRESS.md를 업데이트해야 합니다.
+**중요**:
+- `docs/PROGRESS.md` 업데이트는 squash merge 후 별도 커밋으로 만들지 않습니다.
+- 코드 변경과 `docs/PROGRESS.md` 변경은 동일한 commit에 함께 포함해야 합니다.
+- 문서 작업을 `main`에서 직접 커밋하는 경우에도, `PROGRESS`를 갱신해야 한다면 같은 commit 안에서 함께 반영합니다.
 
 ### **3단계: PROGRESS.md 업데이트**
 
@@ -100,7 +92,7 @@ git commit -m "feat: 기능 설명"
 
 **형식**:
 ```markdown
-#### feat: UI 기본 구성 (캔버스, 도구 바, 네비게이션) (`commit: a1b2c3d`)
+#### feat: UI 기본 구성 (캔버스, 도구 바, 네비게이션)
 - Canvas CustomPaint로 구현
 - 도구 바 (색상, 브러시, 지우개) UI 완성
 - Riverpod StateNotifier로 상태 관리
@@ -109,11 +101,11 @@ git commit -m "feat: 기능 설명"
 **규칙**:
 - 커밋 제목 형식: `타입: 간단한 설명`
   - 타입: `feat`, `fix`, `docs`, `refactor`, `test` 등
-- 커밋 제목 옆에 `commit: [짧은 커밋ID]`를 반드시 함께 기록한다.
-  - 예: ``(`commit: 4f931b2`)``
+- commit id는 기록하지 않는다.
 - 설명: 2-3줄의 간단한 구현 내용 (bullet list)
 - 같은 날짜의 여러 커밋: 같은 날짜 섹션 아래 계속 추가
 - **최신 커밋이 맨 위에 오도록 정렬** (위쪽이 더 최신)
+- `PROGRESS` 반영을 위한 별도 `docs:` 로그를 추가하지 않고, 실제 squash merge commit의 내용을 기록한다.
 
 ---
 
@@ -156,12 +148,12 @@ git commit -m "feat: 기능 설명"
 
 ### 2026-03-28
 
-#### feat: 드로잉 엔진 구현 (터치 입력 & 펜 스트로크) (`commit: 8d12f3a`)
+#### feat: 드로잉 엔진 구현 (터치 입력 & 펜 스트로크)
 - 터치 입력 감지 및 펜 스트로크 렌더링
 - 색상 선택 및 브러시 크기 조절 기능
 - 실시간 캔버스 업데이트
 
-#### feat: UI 기본 구성 (캔버스, 도구 바, 네비게이션) (`commit: a1b2c3d`)
+#### feat: UI 기본 구성 (캔버스, 도구 바, 네비게이션)
 - Canvas CustomPaint로 구현
 - 도구 바 (색상, 브러시, 지우개) UI 완성
 - Riverpod StateNotifier로 상태 관리
@@ -175,7 +167,7 @@ git commit -m "feat: 기능 설명"
 
 - [ ] main 브랜치에 새로운 커밋이 추가되었는가?
 - [ ] 커밋 메시지가 명확한가? (타입: 기능 설명 형식)
-- [ ] 커밋 로그 항목에 `commit id`를 함께 기록했는가?
+- [ ] `docs/PROGRESS.md` 변경이 코드 변경과 같은 commit에 포함되는가?
 - [ ] 커밋 설명이 2-3줄로 작성되었는가?
 - [ ] 📊 전체 진행률 테이블을 업데이트했는가?
 - [ ] 🚧 현재 상태의 3가지 항목을 업데이트했는가?
@@ -236,8 +228,8 @@ docs: 아키텍처 문서 작성
 
 1. **main 브랜치의 커밋만 기록** (feature branch 작업 내역은 기록 X)
 2. **최신순으로 정렬** (위쪽이 더 최신)
-3. **커밋 메시지 + commit id 동시 기록**
-4. **매 커밋마다 🚧 현재 상태 함께 갱신**
+3. **커밋 메시지와 변경 내용만 기록** (commit id 기록 금지)
+4. **squash merge commit 안에 PROGRESS 변경을 함께 포함**
 5. **어떤 도구/Agent에서든 동일한 형식 유지**
 
 ---
@@ -249,10 +241,10 @@ docs: 아키텍처 문서 작성
 
 1. 상단: 카테고리별 진행률 테이블
 2. 중간: 현재 상태 (진행 중, 블로킹 이슈, 다음 작업)
-3. 하단: 날짜별 커밋 로그 (최신순, 각 항목에 commit id 포함)
+3. 하단: 날짜별 커밋 로그 (최신순, commit id 없이 내용만 기록)
 
-작업 완료 후 main 브랜치에 커밋이 추가되면,
-docs/PROGRESS_GUIDE.md의 지침에 따라 PROGRESS.md를 업데이트해주세요.
+feature -> main squash merge를 마무리할 때,
+docs/PROGRESS_GUIDE.md의 지침에 따라 PROGRESS.md를 함께 수정하고 같은 commit에 포함해주세요.
 ```
 
 ---

@@ -42,7 +42,9 @@
 
 ```bash
 git merge --squash feature/xxx
-git commit -m "feat: 의미 있는 단일 변경 설명"
+# docs/PROGRESS.md 업데이트
+git add .
+git commit
 ```
 
 ### [2-1] 병합 전 main 동기화 규칙
@@ -50,9 +52,12 @@ git commit -m "feat: 의미 있는 단일 변경 설명"
 - 병합 전 반드시 `main`의 최신 상태를 기준으로 한다.
 - 충돌 해결은 `feature` 브랜치에서 완료한 후 병합한다.
 
-### [2-2] 병합 후 진행 현황 문서 갱신 규칙
+### [2-2] 병합 시 진행 현황 문서 동시 갱신 규칙
 
-- `feature` 브랜치를 `main`에 Squash Merge하여 새로운 커밋이 추가되면, 즉시 `docs/PROGRESS.md`를 갱신한다.
+- `feature` 브랜치를 `main`에 Squash Merge할 때는 최종 squash commit을 만들기 전에 `docs/PROGRESS.md`를 함께 갱신한다.
+- 코드 변경과 `docs/PROGRESS.md` 변경은 반드시 동일한 squash merge commit에 함께 포함한다.
+- Squash Merge 이후 `PROGRESS` 반영만을 위한 별도 `docs:` 커밋은 만들지 않는다.
+- `docs/PROGRESS.md`에는 commit id를 남기지 않고, 변경 내용만 기록한다.
 - 갱신 형식과 항목은 반드시 `docs/PROGRESS_GUIDE.md`를 기준으로 따른다.
 - 이 규칙은 사람이 수행한 머지와 Agent가 수행/지원한 머지 모두 동일하게 적용한다.
 
@@ -158,7 +163,8 @@ build-number = major*10000 + minor*100 + patch
 - `feature` 브랜치 없이 커밋하는 예시는 제공하지 않는다.
 - 단, `docs/` 하위 문서와 `AGENTS.md`, `CLAUDE.md` 등 운영 문서 작업은 `main`에서 직접 작업 및 커밋/푸시하는 흐름을 허용한다.
 - 코드 변경 제안 시 **커밋 메시지 예시를 항상 함께 제공**한다.
-- `feature -> main` 머지 완료 안내 시 `docs/PROGRESS_GUIDE.md` 기준의 `docs/PROGRESS.md` 업데이트 단계를 함께 안내한다.
+- `feature -> main` 머지 안내 시 `docs/PROGRESS.md` 변경을 최종 squash merge commit에 함께 포함하는 절차를 안내한다.
+- `docs/PROGRESS.md` 기록 예시를 제안할 때는 commit id 없이 변경 내용만 남기는 형식을 사용한다.
 - 규칙과 충돌하는 요청이 들어온 경우, 먼저 규칙 위반을 명시한다.
 - 문서 작업을 `main`에서 진행하더라도 커밋 메시지 컨벤션은 동일하게 유지한다.
 
