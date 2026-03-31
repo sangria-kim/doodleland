@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -96,54 +95,6 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
       feedbackMessage: null,
     );
     return pickedFile.path;
-  }
-
-  Future<String?> cropImage(String sourceImagePath) async {
-    if (state.isBusy) return null;
-    state = state.copyWith(isBusy: true, feedbackMessage: null);
-
-    try {
-      final croppedFile = await ImageCropper().cropImage(
-        sourcePath: sourceImagePath,
-        compressFormat: ImageCompressFormat.png,
-        compressQuality: 100,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: '이미지 자르기',
-            lockAspectRatio: false,
-            aspectRatioPresets: const [
-              CropAspectRatioPreset.original,
-              CropAspectRatioPreset.ratio3x2,
-              CropAspectRatioPreset.ratio4x3,
-              CropAspectRatioPreset.ratio16x9,
-            ],
-            initAspectRatio: CropAspectRatioPreset.original,
-          ),
-          IOSUiSettings(
-            title: '이미지 자르기',
-            aspectRatioLockEnabled: false,
-            aspectRatioPresets: const [
-              CropAspectRatioPreset.original,
-              CropAspectRatioPreset.ratio3x2,
-              CropAspectRatioPreset.ratio4x3,
-              CropAspectRatioPreset.ratio16x9,
-            ],
-          ),
-        ],
-      );
-      if (croppedFile == null) {
-        state = state.copyWith(isBusy: false, feedbackMessage: '이미지 크롭이 취소되었습니다.');
-        return null;
-      }
-      state = state.copyWith(isBusy: false, selectedImagePath: croppedFile.path);
-      return croppedFile.path;
-    } catch (error) {
-      state = state.copyWith(
-        isBusy: false,
-        feedbackMessage: '이미지 크롭 중 오류가 발생했습니다: $error',
-      );
-      return null;
-    }
   }
 
   Future<SaveCharacterResult?> saveCurrentImage(String imagePath) async {
