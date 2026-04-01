@@ -2,11 +2,9 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-enum CharacterStorageKind {
-  original,
-  transparent,
-  thumbnail,
-}
+enum CharacterStorageKind { original, transparent, thumbnail }
+
+enum CharacterDebugStorageKind { original, stroke, floodfill, mask, preview }
 
 extension _CharacterStorageKindPath on CharacterStorageKind {
   String get directoryName {
@@ -17,6 +15,23 @@ extension _CharacterStorageKindPath on CharacterStorageKind {
         return 'transparent';
       case CharacterStorageKind.thumbnail:
         return 'thumbnail';
+    }
+  }
+}
+
+extension _CharacterDebugStorageKindPath on CharacterDebugStorageKind {
+  String get directoryName {
+    switch (this) {
+      case CharacterDebugStorageKind.original:
+        return 'original';
+      case CharacterDebugStorageKind.stroke:
+        return 'stroke';
+      case CharacterDebugStorageKind.floodfill:
+        return 'floodfill';
+      case CharacterDebugStorageKind.mask:
+        return 'mask';
+      case CharacterDebugStorageKind.preview:
+        return 'preview';
     }
   }
 }
@@ -38,6 +53,25 @@ class CharacterStoragePaths {
 
   Future<Directory> get thumbnailDirectory =>
       _ensureDirectory(CharacterStorageKind.thumbnail);
+
+  Future<Directory> get debugRootDirectory async {
+    final directory = Directory(
+      '${baseDirectory.path}/$rootDirectoryName/debug',
+    );
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+    return directory;
+  }
+
+  Future<Directory> debugDirectory(CharacterDebugStorageKind kind) async {
+    final rootDirectory = await debugRootDirectory;
+    final directory = Directory('${rootDirectory.path}/${kind.directoryName}');
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+    return directory;
+  }
 
   Future<Directory> _ensureDirectory(CharacterStorageKind kind) async {
     final directory = Directory(

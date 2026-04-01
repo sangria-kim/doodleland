@@ -7,7 +7,9 @@ void main() {
   late Directory baseDirectory;
 
   setUp(() async {
-    baseDirectory = await Directory.systemTemp.createTemp('character-storage-test');
+    baseDirectory = await Directory.systemTemp.createTemp(
+      'character-storage-test',
+    );
   });
 
   tearDown(() async {
@@ -37,11 +39,33 @@ void main() {
     final transparentPath = await paths.transparentImagePath(extension: 'webp');
     final thumbnailPath = await paths.thumbnailImagePath(extension: 'jpg');
 
-    expect(originalPath, contains('${baseDirectory.path}/characters/original/original_'));
+    expect(
+      originalPath,
+      contains('${baseDirectory.path}/characters/original/original_'),
+    );
     expect(originalPath, endsWith('.png'));
     expect(transparentPath, contains('/characters/transparent/transparent_'));
     expect(transparentPath, endsWith('.webp'));
     expect(thumbnailPath, contains('/characters/thumbnail/thumbnail_'));
     expect(thumbnailPath, endsWith('.jpg'));
+  });
+
+  test('debug directories are created under debug root', () async {
+    final paths = CharacterStoragePaths(baseDirectory: baseDirectory);
+
+    final debugRoot = await paths.debugRootDirectory;
+    final original = await paths.debugDirectory(
+      CharacterDebugStorageKind.original,
+    );
+    final preview = await paths.debugDirectory(
+      CharacterDebugStorageKind.preview,
+    );
+
+    expect(await debugRoot.exists(), isTrue);
+    expect(await original.exists(), isTrue);
+    expect(await preview.exists(), isTrue);
+    expect(debugRoot.path, '${baseDirectory.path}/characters/debug');
+    expect(original.path, '${baseDirectory.path}/characters/debug/original');
+    expect(preview.path, '${baseDirectory.path}/characters/debug/preview');
   });
 }

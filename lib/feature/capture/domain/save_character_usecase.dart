@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as image;
 
 import '../../../core/storage/character_storage_paths.dart';
+import '../data/background_removal_config.dart';
 import '../../library/data/character_repository.dart';
 import '../data/background_remover.dart';
 
@@ -14,9 +15,9 @@ class SaveCharacterUseCase {
     required CharacterRepository characterRepository,
     required CharacterStoragePathFactory characterStoragePathFactory,
     BackgroundRemover? backgroundRemover,
-  })  : _characterRepository = characterRepository,
-        _characterStoragePathFactory = characterStoragePathFactory,
-        _backgroundRemover = backgroundRemover ?? const BackgroundRemover();
+  }) : _characterRepository = characterRepository,
+       _characterStoragePathFactory = characterStoragePathFactory,
+       _backgroundRemover = backgroundRemover ?? const BackgroundRemover();
 
   final CharacterRepository _characterRepository;
   final CharacterStoragePathFactory _characterStoragePathFactory;
@@ -43,6 +44,10 @@ class SaveCharacterUseCase {
       sourceImagePath: sourceImagePath,
       destinationImagePath: transparentImagePath,
       trimToForeground: false,
+      debugSession: await _buildDebugSession(
+        storagePaths: storagePaths,
+        transparentImagePath: transparentImagePath,
+      ),
     );
     final transparentBytes = await File(transparentImagePath).readAsBytes();
     await _saveThumbnailImage(
@@ -73,8 +78,22 @@ class SaveCharacterUseCase {
       () => _renderThumbnailPng(sourceImageBytes: sourceImageBytes, width: 200),
     );
 
-    await File(destinationImagePath).writeAsBytes(
-      pngBytes,
+    await File(destinationImagePath).writeAsBytes(pngBytes);
+  }
+
+  Future<BackgroundRemovalDebugSession?> _buildDebugSession({
+    required CharacterStoragePaths storagePaths,
+    required String transparentImagePath,
+  }) async {
+    if (!kDebugMode || !debugBackgroundRemoval) {
+      return null;
+    }
+
+    final rootDirectory = await storagePaths.debugRootDirectory;
+    final fileName = transparentImagePath.split(Platform.pathSeparator).last;
+    return BackgroundRemovalDebugSession(
+      rootDirectoryPath: rootDirectory.path,
+      fileName: fileName,
     );
   }
 }
@@ -106,6 +125,8 @@ final saveCharacterUseCaseProvider = Provider<SaveCharacterUseCase>((ref) {
   return SaveCharacterUseCase(
     characterRepository: ref.watch(characterRepositoryProvider),
     characterStoragePathFactory: const CharacterStoragePathFactory(),
-    backgroundRemover: const BackgroundRemover(),
+    backgroundRemover: const BackgroundRemover(
+      config: defaultBackgroundRemovalConfig,
+    ),
   );
 });
