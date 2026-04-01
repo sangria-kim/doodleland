@@ -41,14 +41,14 @@ class StageViewModel extends StateNotifier<StageState> {
   StageViewModel({
     required PlaceCharacterUseCase placeCharacterUseCase,
     required StageBackground initialBackground,
-  })  : _placeCharacterUseCase = placeCharacterUseCase,
-        super(StageState(selectedBackground: initialBackground));
+  }) : _placeCharacterUseCase = placeCharacterUseCase,
+       super(StageState(selectedBackground: initialBackground));
 
   final PlaceCharacterUseCase _placeCharacterUseCase;
 
   Future<bool> placeCharacter({
     required Character character,
-    required MotionPreset motionPreset,
+    required MotionPreset objectMotion,
   }) async {
     if (state.isFull) {
       state = state.copyWith(errorMessage: '무대가 꽉 찼어요!');
@@ -60,7 +60,7 @@ class StageViewModel extends StateNotifier<StageState> {
         : state.placedCharacters.last.zIndex + 1;
     final placedCharacter = await _placeCharacterUseCase(
       character: character,
-      motionPreset: motionPreset,
+      objectMotion: objectMotion,
       groundY: state.selectedBackground.groundY,
       zIndex: nextZIndex,
     );
@@ -89,11 +89,16 @@ class StageViewModel extends StateNotifier<StageState> {
     );
 
     final placed = state.placedCharacters[index];
-    final updated = placed.copyWith(position: clampedPosition);
+    final updated = placed.copyWith(
+      stageRuntime: placed.stageRuntime.copyWith(position: clampedPosition),
+    );
     final nextCharacters = [...state.placedCharacters];
     nextCharacters[index] = updated;
 
-    state = state.copyWith(placedCharacters: nextCharacters, errorMessage: null);
+    state = state.copyWith(
+      placedCharacters: nextCharacters,
+      errorMessage: null,
+    );
     return true;
   }
 
@@ -114,7 +119,10 @@ class StageViewModel extends StateNotifier<StageState> {
     final nextCharacters = [...state.placedCharacters];
     nextCharacters[index] = updated;
 
-    state = state.copyWith(placedCharacters: nextCharacters, errorMessage: null);
+    state = state.copyWith(
+      placedCharacters: nextCharacters,
+      errorMessage: null,
+    );
   }
 
   bool removeCharacter(String instanceId) {
@@ -143,8 +151,8 @@ class StageViewModel extends StateNotifier<StageState> {
 
 final stageViewModelProvider =
     StateNotifierProvider<StageViewModel, StageState>(
-  (ref) => StageViewModel(
-    placeCharacterUseCase: ref.watch(placeCharacterUseCaseProvider),
-    initialBackground: ref.watch(sceneRepositoryProvider).defaultBackground,
-  ),
-);
+      (ref) => StageViewModel(
+        placeCharacterUseCase: ref.watch(placeCharacterUseCaseProvider),
+        initialBackground: ref.watch(sceneRepositoryProvider).defaultBackground,
+      ),
+    );

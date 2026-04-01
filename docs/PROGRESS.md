@@ -32,6 +32,11 @@
 
 ### 2026-04-02
 
+#### feat: separate object and stage motion systems
+- 무대 캐릭터 움직임을 object motion과 stage motion으로 분리하고, 경계/방향/드래그 상태를 전담하는 stage motion engine 계층을 추가했습니다.
+- 스테이지 이동 규칙을 좌우 왕복 기반으로 재정의하고, 속도는 생성 시 `0.1~0.4` 범위 랜덤 1회 부여 후 유지되도록 조정했습니다.
+- 반전 렌더링을 제거하고 이미지 절반이 화면 밖으로 이동한 뒤 방향 전환되도록 경계를 보정했으며 관련 기능/아키텍처/기술 설계/QA 문서를 함께 갱신했습니다.
+
 #### feat: add first-pass child drawing background removal
 - 외부 배경 제거를 우선하는 1차 배경 제거 파이프라인을 앱 저장 경로에 연결했습니다.
 - 종이 배경 샘플링, stroke reinforce, edge flood fill 기반 마스크 생성으로 안정적인 투명 PNG 생성을 우선 적용했습니다.

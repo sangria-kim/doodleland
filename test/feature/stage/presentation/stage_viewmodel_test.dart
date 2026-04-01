@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:doodleland/feature/stage/presentation/stage_viewmodel.dart';
 import 'package:doodleland/feature/stage/domain/model/motion_preset.dart';
 import 'package:doodleland/feature/stage/domain/model/stage_background.dart';
@@ -58,7 +56,7 @@ void main() {
         height: 32,
         createdAt: DateTime(2026, 1, 1),
       ),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
 
     expect(isAdded, isTrue);
@@ -86,11 +84,11 @@ void main() {
     final vm = container.read(stageViewModelProvider.notifier);
     await vm.placeCharacter(
       character: _buildCharacter(id: 21, name: 'first'),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
     await vm.placeCharacter(
       character: _buildCharacter(id: 22, name: 'second'),
-      motionPreset: MotionPreset.bouncing,
+      objectMotion: MotionPreset.bouncing,
     );
 
     expect(fakeUseCase.capturedZIndexes, equals([0, 1]));
@@ -117,14 +115,14 @@ void main() {
     for (var index = 0; index < 10; index += 1) {
       final isAdded = await vm.placeCharacter(
         character: _buildCharacter(id: 100 + index, name: 'character-$index'),
-        motionPreset: MotionPreset.floating,
+        objectMotion: MotionPreset.floating,
       );
       expect(isAdded, isTrue);
     }
 
     final overflowAdded = await vm.placeCharacter(
       character: _buildCharacter(id: 999, name: 'overflow'),
-      motionPreset: MotionPreset.spinning,
+      objectMotion: MotionPreset.spinning,
     );
 
     expect(overflowAdded, isFalse);
@@ -155,7 +153,7 @@ void main() {
         height: 32,
         createdAt: DateTime(2026, 1, 1),
       ),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
 
     final targetId = container
@@ -193,7 +191,7 @@ void main() {
         height: 32,
         createdAt: DateTime(2026, 1, 1),
       ),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
     await vm.placeCharacter(
       character: Character(
@@ -206,7 +204,7 @@ void main() {
         height: 32,
         createdAt: DateTime(2026, 1, 1),
       ),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
 
     final firstId = container
@@ -239,7 +237,7 @@ void main() {
         height: 32,
         createdAt: DateTime(2026, 1, 1),
       ),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
     await vm.placeCharacter(
       character: Character(
@@ -252,7 +250,7 @@ void main() {
         height: 32,
         createdAt: DateTime(2026, 1, 1),
       ),
-      motionPreset: MotionPreset.floating,
+      objectMotion: MotionPreset.floating,
     );
 
     final targetId = container
@@ -289,7 +287,7 @@ void main() {
           height: 32,
           createdAt: DateTime(2026, 1, 1),
         ),
-        motionPreset: MotionPreset.floating,
+        objectMotion: MotionPreset.floating,
       );
       await vm.placeCharacter(
         character: Character(
@@ -302,7 +300,7 @@ void main() {
           height: 32,
           createdAt: DateTime(2026, 1, 1),
         ),
-        motionPreset: MotionPreset.floating,
+        objectMotion: MotionPreset.floating,
       );
 
       final ids = container
@@ -354,7 +352,7 @@ class _FakePlaceCharacterUseCase extends PlaceCharacterUseCase {
   @override
   Future<PlacedCharacter> call({
     required Character character,
-    required MotionPreset motionPreset,
+    required MotionPreset objectMotion,
     double? groundY,
     int? zIndex,
   }) async {
@@ -365,7 +363,7 @@ class _FakePlaceCharacterUseCase extends PlaceCharacterUseCase {
     }
     return super.call(
       character: character,
-      motionPreset: motionPreset,
+      objectMotion: objectMotion,
       groundY: groundY,
       zIndex: zIndex,
     );

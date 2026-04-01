@@ -14,11 +14,11 @@ import 'motion_selector.dart';
 class CharacterPlacementSelection {
   const CharacterPlacementSelection({
     required this.character,
-    required this.motion,
+    required this.objectMotion,
   });
 
   final Character character;
-  final MotionPreset motion;
+  final MotionPreset objectMotion;
 }
 
 class CharacterSelector extends ConsumerStatefulWidget {
@@ -269,7 +269,7 @@ class _MotionSelectionSheet extends StatelessWidget {
                     Navigator.of(context).pop(
                       CharacterPlacementSelection(
                         character: character,
-                        motion: state,
+                        objectMotion: state,
                       ),
                     );
                   },

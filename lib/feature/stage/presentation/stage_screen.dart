@@ -3,11 +3,14 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/model/placed_character.dart';
 import '../domain/model/motion_preset.dart';
+import '../domain/model/stage_motion.dart';
+import '../domain/model/stage_motion_engine.dart';
 import 'stage_viewmodel.dart';
 import 'widget/character_selector.dart';
 
@@ -55,7 +58,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
         builder: (context, constraints) {
           final topPadding = MediaQuery.of(context).padding.top;
           final horizontalPadding = 16.0;
-          final overlayColor = Colors.black.withOpacity(0.36);
+          final overlayColor = Colors.black.withValues(alpha: 0.36);
           final overlayDecoration = BoxDecoration(
             color: overlayColor,
             borderRadius: BorderRadius.circular(18),
@@ -159,21 +162,28 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                             child: Text(
                               '${state.placedCharacters.length}/10',
                               style:
-                                  Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        color: Colors.white,
-                                        shadows: const [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 2,
-                                          ),
-                                        ],
-                                      ) ??
-                                      const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                                  Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    shadows: const [
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 2,
                                       ),
+                                    ],
+                                  ) ??
+                                  const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 2,
+                                      ),
+                                    ],
+                                  ),
                             ),
                           ),
                         ),
@@ -188,7 +198,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                   right: horizontalPadding,
                   top: topPadding + 64,
                   child: Card(
-                    color: Colors.red.shade50.withOpacity(0.9),
+                    color: Colors.red.shade50.withValues(alpha: 0.9),
                     margin: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.warning_amber_outlined),
@@ -244,7 +254,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
         .read(stageViewModelProvider.notifier)
         .placeCharacter(
           character: selection.character,
-          motionPreset: selection.motion,
+          objectMotion: selection.objectMotion,
         );
 
     if (!context.mounted) {
@@ -335,19 +345,26 @@ class _InteractivePlacedCharacter extends StatefulWidget {
 class _InteractivePlacedCharacterState
     extends State<_InteractivePlacedCharacter>
     with TickerProviderStateMixin {
+  static const StageMotionEngine _stageMotionEngine = StageMotionEngine();
+
   late final AnimationController _entryController;
   late final Animation<double> _entryScale;
   late final AnimationController _bounceController;
   late final Animation<double> _bounceScale;
-  late final AnimationController _motionController;
-  late final Animation<double> _motionPhase;
+  late final AnimationController _objectMotionController;
+  late final Animation<double> _objectMotionPhase;
+  late final Ticker _stageTicker;
 
   Offset _dragStartPosition = Offset.zero;
   bool _isDragging = false;
+  Duration _lastTickTimestamp = Duration.zero;
+  late StageMotionRuntimeState _stageRuntime;
 
   @override
   void initState() {
     super.initState();
+    _stageRuntime = widget.placed.stageRuntime;
+
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 520),
@@ -389,35 +406,67 @@ class _InteractivePlacedCharacterState
         weight: 50,
       ),
     ]).animate(_bounceController);
-    _motionController = AnimationController(
+    _objectMotionController = AnimationController(
       vsync: this,
-      duration: _motionDuration(),
+      duration: _objectMotionDuration(),
     );
-    _motionPhase = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _motionController, curve: Curves.linear));
+    _objectMotionPhase = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _objectMotionController, curve: Curves.linear),
+    );
+
+    _stageTicker = createTicker(_onStageTick)..start();
 
     _entryController.forward();
-    _startMotionAnimation();
+    _startObjectMotionAnimation();
 
     _bounceController.addStatusListener((status) {
       if (status == AnimationStatus.completed && !_isDragging && mounted) {
-        _startMotionAnimation();
+        _startObjectMotionAnimation();
       }
     });
   }
 
   @override
+  void didUpdateWidget(covariant _InteractivePlacedCharacter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.placed.instanceId != widget.placed.instanceId) {
+      _stageRuntime = widget.placed.stageRuntime;
+    }
+  }
+
+  @override
   void dispose() {
+    _stageTicker.dispose();
     _entryController.dispose();
     _bounceController.dispose();
-    _motionController.dispose();
+    _objectMotionController.dispose();
     super.dispose();
   }
 
-  Duration _motionDuration() {
-    return switch (widget.placed.motionPreset) {
+  void _onStageTick(Duration elapsed) {
+    final delta = elapsed - _lastTickTimestamp;
+    _lastTickTimestamp = elapsed;
+
+    final nextRuntime = _stageMotionEngine.tick(
+      motion: widget.placed.stageMotion,
+      runtime: _stageRuntime,
+      stageSize: widget.stageSize,
+      objectSize: _characterDisplaySize(
+        widget.placed,
+        includePlacedScale: true,
+      ),
+      delta: delta,
+    );
+
+    if (!_isSameRuntime(nextRuntime, _stageRuntime) && mounted) {
+      setState(() {
+        _stageRuntime = nextRuntime;
+      });
+    }
+  }
+
+  Duration _objectMotionDuration() {
+    return switch (widget.placed.objectMotion) {
       MotionPreset.floating => const Duration(milliseconds: 2000),
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
       MotionPreset.gliding => const Duration(milliseconds: 3000),
@@ -426,18 +475,18 @@ class _InteractivePlacedCharacterState
     };
   }
 
-  void _startMotionAnimation() {
+  void _startObjectMotionAnimation() {
     if (_isDragging) {
       return;
     }
-    if (!_motionController.isAnimating) {
-      _motionController.repeat();
+    if (!_objectMotionController.isAnimating) {
+      _objectMotionController.repeat();
     }
   }
 
-  void _pauseMotionAnimation() {
-    if (_motionController.isAnimating) {
-      _motionController.stop();
+  void _pauseObjectMotionAnimation() {
+    if (_objectMotionController.isAnimating) {
+      _objectMotionController.stop();
     }
   }
 
@@ -449,10 +498,10 @@ class _InteractivePlacedCharacterState
       return;
     }
 
-    _pauseMotionAnimation();
+    _pauseObjectMotionAnimation();
     _bounceController.forward(from: 0).whenComplete(() {
       if (mounted && !_isDragging) {
-        _startMotionAnimation();
+        _startObjectMotionAnimation();
       }
     });
   }
@@ -460,9 +509,11 @@ class _InteractivePlacedCharacterState
   void _handlePanStart(DragStartDetails details) {
     widget.onInteraction();
     widget.onBringToFront(widget.placed.instanceId);
-    _dragStartPosition = widget.placed.position;
+    _dragStartPosition = _stageRuntime.position;
     _isDragging = true;
-    _pauseMotionAnimation();
+    setState(() {
+      _stageRuntime = _stageMotionEngine.pauseForDrag(_stageRuntime);
+    });
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
@@ -478,75 +529,123 @@ class _InteractivePlacedCharacterState
 
     final nextX = _dragStartPosition.dx + details.delta.dx / base.width;
     final nextY = _dragStartPosition.dy + details.delta.dy / base.height;
-    final nextPosition = _clampPosition(Offset(nextX, nextY));
+    final nextRuntime = _stageMotionEngine.applyDragPosition(
+      runtime: _stageRuntime,
+      draggedPosition: Offset(nextX, nextY),
+      stageSize: widget.stageSize,
+      objectSize: _characterDisplaySize(
+        widget.placed,
+        includePlacedScale: true,
+      ),
+    );
+    final nextPosition = nextRuntime.position;
     _dragStartPosition = nextPosition;
 
+    if (!_isSameRuntime(nextRuntime, _stageRuntime)) {
+      setState(() {
+        _stageRuntime = nextRuntime;
+      });
+    }
     widget.onMove(widget.placed.instanceId, nextPosition);
   }
 
   void _handlePanEnd(DragEndDetails _) {
+    _resumeStageMotionFromDrag();
+  }
+
+  void _handlePanCancel() {
+    if (!_isDragging) {
+      return;
+    }
+    _resumeStageMotionFromDrag();
+  }
+
+  void _resumeStageMotionFromDrag() {
+    final resumedRuntime = _stageMotionEngine.resumeFromDrag(
+      runtime: _stageRuntime,
+      droppedPosition: _stageRuntime.position,
+      stageSize: widget.stageSize,
+      objectSize: _characterDisplaySize(
+        widget.placed,
+        includePlacedScale: true,
+      ),
+    );
+
     _isDragging = false;
-    _startMotionAnimation();
+    if (!_isSameRuntime(resumedRuntime, _stageRuntime)) {
+      setState(() {
+        _stageRuntime = resumedRuntime;
+      });
+    } else {
+      _stageRuntime = resumedRuntime;
+    }
+
+    widget.onMove(widget.placed.instanceId, resumedRuntime.position);
+    _startObjectMotionAnimation();
   }
 
-  Offset _clampPosition(Offset position) {
-    return Offset(position.dx.clamp(0.0, 1.0), position.dy.clamp(0.0, 1.0));
+  bool _isSameRuntime(StageMotionRuntimeState a, StageMotionRuntimeState b) {
+    return a.position == b.position &&
+        a.direction == b.direction &&
+        a.speed == b.speed &&
+        a.isFlippedHorizontally == b.isFlippedHorizontally &&
+        a.isPaused == b.isPaused;
   }
 
-  Offset _motionOffset() {
-    final wave = math.sin(_motionPhase.value * math.pi * 2);
+  Offset _objectMotionOffset() {
+    final wave = math.sin(_objectMotionPhase.value * math.pi * 2);
     final stageHeight = widget.stageSize.height <= 0
         ? 1.0
         : widget.stageSize.height;
-    final stageWidth = widget.stageSize.width <= 0
-        ? 1.0
-        : widget.stageSize.width;
     final floatingOffsetY = 20 / stageHeight;
     final bouncingOffsetY = 40 / stageHeight;
-    final glidingOffsetX = 60 / stageWidth;
-    final rollingOffsetX = 80 / stageWidth;
+    final glidingOffsetY = 12 / stageHeight;
 
-    return switch (widget.placed.motionPreset) {
+    return switch (widget.placed.objectMotion) {
       MotionPreset.floating => Offset(0.0, wave * floatingOffsetY),
       MotionPreset.bouncing => Offset(0.0, -wave.abs() * bouncingOffsetY),
-      MotionPreset.gliding => Offset(wave * glidingOffsetX, 0.0),
-      MotionPreset.rolling => Offset(wave * rollingOffsetX, 0.0),
+      MotionPreset.gliding => Offset(0.0, wave * glidingOffsetY),
+      MotionPreset.rolling => Offset.zero,
       MotionPreset.spinning => Offset.zero,
     };
   }
 
-  double _motionRotation() {
-    final wave = _motionPhase.value * math.pi * 2;
-    return switch (widget.placed.motionPreset) {
-      MotionPreset.rolling => wave,
-      MotionPreset.spinning => wave,
-      _ => 0.0,
+  double _objectMotionRotation() {
+    final cycle = _objectMotionPhase.value * math.pi * 2;
+    return switch (widget.placed.objectMotion) {
+      MotionPreset.gliding => math.sin(cycle) * 0.08,
+      MotionPreset.rolling => cycle,
+      MotionPreset.spinning => cycle * 1.5,
+      _ => 0,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final x = widget.placed.position.dx.clamp(0.0, 1.0);
-    final y = widget.placed.position.dy.clamp(0.0, 1.0);
+    final x = _stageRuntime.position.dx;
+    final y = _stageRuntime.position.dy.clamp(0.0, 1.0);
     return Align(
       alignment: Alignment(x * 2 - 1, y * 2 - 1),
       child: AnimatedBuilder(
         animation: Listenable.merge([
           _entryScale,
           _bounceScale,
-          _motionController,
+          _objectMotionController,
         ]),
         builder: (context, child) {
-          final motionOffset = _motionOffset();
-          final motionRotation = _motionRotation();
+          final objectMotionOffset = _objectMotionOffset();
+          final objectMotionRotation = _objectMotionRotation();
           return Transform.scale(
             scale: _entryScale.value * _bounceScale.value * widget.placed.scale,
             child: Transform.translate(
               offset: Offset(
-                motionOffset.dx * widget.stageSize.width,
-                motionOffset.dy * widget.stageSize.height,
+                objectMotionOffset.dx * widget.stageSize.width,
+                objectMotionOffset.dy * widget.stageSize.height,
               ),
-              child: Transform.rotate(angle: motionRotation, child: child),
+              child: Transform.rotate(
+                angle: objectMotionRotation,
+                child: child,
+              ),
             ),
           );
         },
@@ -555,6 +654,7 @@ class _InteractivePlacedCharacterState
           onPanStart: _handlePanStart,
           onPanUpdate: _handlePanUpdate,
           onPanEnd: _handlePanEnd,
+          onPanCancel: _handlePanCancel,
           onLongPress: () {
             widget.onInteraction();
             widget.onDelete(widget.placed.instanceId);
@@ -569,26 +669,11 @@ class _InteractivePlacedCharacterState
 class _PlacedCharacterBubble extends StatelessWidget {
   const _PlacedCharacterBubble({required this.placed});
 
-  static const double _maxDisplaySize = 120;
-
   final PlacedCharacter placed;
-
-  Size _displaySize() {
-    final sourceWidth = placed.sourceWidth <= 0
-        ? 1.0
-        : placed.sourceWidth.toDouble();
-    final sourceHeight = placed.sourceHeight <= 0
-        ? 1.0
-        : placed.sourceHeight.toDouble();
-    final longestEdge = math.max(sourceWidth, sourceHeight);
-    final scale = _maxDisplaySize / longestEdge;
-
-    return Size(sourceWidth * scale, sourceHeight * scale);
-  }
 
   @override
   Widget build(BuildContext context) {
-    final displaySize = _displaySize();
+    final displaySize = _characterDisplaySize(placed);
     return SizedBox(
       width: displaySize.width,
       height: displaySize.height,
@@ -600,4 +685,25 @@ class _PlacedCharacterBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+Size _characterDisplaySize(
+  PlacedCharacter placed, {
+  bool includePlacedScale = false,
+}) {
+  const maxDisplaySize = 120.0;
+  final sourceWidth = placed.sourceWidth <= 0
+      ? 1.0
+      : placed.sourceWidth.toDouble();
+  final sourceHeight = placed.sourceHeight <= 0
+      ? 1.0
+      : placed.sourceHeight.toDouble();
+  final longestEdge = math.max(sourceWidth, sourceHeight);
+  final scale = maxDisplaySize / longestEdge;
+  final placedScale = includePlacedScale ? placed.scale : 1.0;
+
+  return Size(
+    sourceWidth * scale * placedScale,
+    sourceHeight * scale * placedScale,
+  );
 }

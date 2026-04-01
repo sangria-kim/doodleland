@@ -55,6 +55,8 @@ lib/
 │       │   ├── model/
 │       │   │   ├── motion_preset.dart
 │       │   │   ├── placed_character.dart
+│       │   │   ├── stage_motion.dart
+│       │   │   ├── stage_motion_engine.dart
 │       │   │   ├── stage_background.dart
 │       │   │   └── touch_preset.dart
 │       │   └── place_character_usecase.dart
@@ -121,9 +123,10 @@ class PlacedCharacter {
   final String thumbnailPath;
   final int sourceWidth;
   final int sourceHeight;
-  final MotionPreset motionPreset;
+  final MotionPreset objectMotion;
+  final StageMotion stageMotion;
+  final StageMotionRuntimeState stageRuntime;
   final TouchPreset touchPreset;
-  final Offset position;
   final double scale;
   final int zIndex;
 }
@@ -139,6 +142,38 @@ enum MotionPreset {
   spinning,
 }
 ```
+
+### StageMotion (저장 설정)
+```dart
+class StageMotion {
+  final bool enabled;
+  final StageMotionPathType pathType; // v1: horizontalPingPong
+}
+```
+
+### StageMotionRuntimeState (런타임 상태)
+```dart
+class StageMotionRuntimeState {
+  final Offset position;
+  final StageMotionDirection direction; // leftToRight / rightToLeft
+  final double speed; // 0.1 ~ 0.4, 생성 시 1회 지정
+  final bool isFlippedHorizontally;
+  final bool isPaused;
+}
+```
+
+저장/런타임 분리 기준:
+- 저장 설정: `objectMotion`, `stageMotion`
+- 런타임 상태: `stageRuntime`(`position`, `direction`, `speed`, `isFlippedHorizontally`, `isPaused`)
+- 현재 stage 씬은 메모리 상태 기반이므로 DB 마이그레이션은 없습니다.
+
+기본값 및 하위 호환:
+- 기존 단일 `motionPreset` 의미는 `objectMotion`으로 승격합니다.
+- `stageMotion` 기본값은 `enabled=true`, `pathType=horizontalPingPong`입니다.
+- `stageRuntime.direction` 기본값은 `leftToRight`입니다.
+- `stageRuntime.speed`는 캐릭터 생성 시 `0.1~0.4` 범위 랜덤 1회 부여 후 유지합니다.
+- 드래그 종료 시 방향은 `leftToRight`로 재설정되며, 속도는 유지됩니다.
+- `isFlippedHorizontally` 필드는 확장 대비로 유지하지만, v1 렌더링에서는 좌우 반전을 사용하지 않습니다.
 
 ### TouchPreset
 ```dart

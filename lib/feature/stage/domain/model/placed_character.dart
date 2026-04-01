@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 
 import 'motion_preset.dart';
+import 'stage_motion.dart';
 import 'touch_preset.dart';
 
 @immutable
@@ -15,9 +16,10 @@ class PlacedCharacter {
     required this.thumbnailPath,
     required this.sourceWidth,
     required this.sourceHeight,
-    required this.motionPreset,
+    required this.objectMotion,
+    required this.stageMotion,
+    required this.stageRuntime,
     required this.touchPreset,
-    required this.position,
     required this.scale,
     required this.zIndex,
   });
@@ -29,11 +31,15 @@ class PlacedCharacter {
   final String thumbnailPath;
   final int sourceWidth;
   final int sourceHeight;
-  final MotionPreset motionPreset;
+  final MotionPreset objectMotion;
+  final StageMotion stageMotion;
+  final StageMotionRuntimeState stageRuntime;
   final TouchPreset touchPreset;
-  final Offset position;
   final double scale;
   final int zIndex;
+
+  Offset get position => stageRuntime.position;
+  bool get isFlippedHorizontally => stageRuntime.isFlippedHorizontally;
 
   PlacedCharacter copyWith({
     String? instanceId,
@@ -43,9 +49,10 @@ class PlacedCharacter {
     String? thumbnailPath,
     int? sourceWidth,
     int? sourceHeight,
-    MotionPreset? motionPreset,
+    MotionPreset? objectMotion,
+    StageMotion? stageMotion,
+    StageMotionRuntimeState? stageRuntime,
     TouchPreset? touchPreset,
-    Offset? position,
     double? scale,
     int? zIndex,
   }) {
@@ -57,9 +64,10 @@ class PlacedCharacter {
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       sourceWidth: sourceWidth ?? this.sourceWidth,
       sourceHeight: sourceHeight ?? this.sourceHeight,
-      motionPreset: motionPreset ?? this.motionPreset,
+      objectMotion: objectMotion ?? this.objectMotion,
+      stageMotion: stageMotion ?? this.stageMotion,
+      stageRuntime: stageRuntime ?? this.stageRuntime,
       touchPreset: touchPreset ?? this.touchPreset,
-      position: position ?? this.position,
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
     );

@@ -1,10 +1,4 @@
-enum MotionPreset {
-  floating,
-  bouncing,
-  gliding,
-  rolling,
-  spinning,
-}
+enum MotionPreset { floating, bouncing, gliding, rolling, spinning }
 
 extension MotionPresetText on MotionPreset {
   String get label {
@@ -21,8 +15,8 @@ extension MotionPresetText on MotionPreset {
     return switch (this) {
       MotionPreset.floating => '천천히 위아래로 떠다니는 기본 움직임',
       MotionPreset.bouncing => '짧은 주기로 경쾌하게 튀어오르는 움직임',
-      MotionPreset.gliding => '좌우로 왕복하는 활공 움직임',
-      MotionPreset.rolling => '회전하면서 좌우로 움직이는 굴러가는 모션',
+      MotionPreset.gliding => '부드럽게 흔들리듯 떠다니는 활공 느낌의 움직임',
+      MotionPreset.rolling => '제자리에서 굴러가듯 회전하는 모션',
       MotionPreset.spinning => '그 자리에 서서 회전하는 모션',
     };
   }
