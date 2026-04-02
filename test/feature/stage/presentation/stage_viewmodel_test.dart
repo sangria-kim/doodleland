@@ -122,7 +122,7 @@ void main() {
 
     final overflowAdded = await vm.placeCharacter(
       character: _buildCharacter(id: 999, name: 'overflow'),
-      objectMotion: MotionPreset.spinning,
+      objectMotion: MotionPreset.rolling,
     );
 
     expect(overflowAdded, isFalse);

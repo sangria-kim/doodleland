@@ -139,7 +139,6 @@ enum MotionPreset {
   bouncing,
   gliding,
   rolling,
-  spinning,
 }
 ```
 

@@ -6,6 +6,7 @@ import '../feature/capture/presentation/crop_screen.dart';
 import '../feature/capture/presentation/preview_screen.dart';
 import '../feature/home/presentation/home_screen.dart';
 import '../feature/stage/presentation/background_select_screen.dart';
+import '../feature/stage/presentation/character_placement_flow_screen.dart';
 import '../feature/stage/presentation/stage_screen.dart';
 
 class AppRouter {
@@ -38,6 +39,10 @@ class AppRouter {
       GoRoute(
         path: '/stage/background',
         builder: (context, state) => const BackgroundSelectScreen(),
+      ),
+      GoRoute(
+        path: '/stage/character-placement',
+        builder: (context, state) => const CharacterPlacementFlowScreen(),
       ),
       GoRoute(path: '/stage', builder: (context, state) => const StageScreen()),
     ],

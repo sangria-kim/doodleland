@@ -7,10 +7,12 @@ class MotionSelector extends StatelessWidget {
     super.key,
     required this.selectedMotion,
     required this.onChanged,
+    this.compact = false,
   });
 
   final MotionPreset selectedMotion;
   final ValueChanged<MotionPreset> onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,7 @@ class MotionSelector extends StatelessWidget {
                     motion: motion,
                     selected: selectedMotion == motion,
                     onTap: () => onChanged(motion),
+                    compact: compact,
                   ),
                 ),
               )
@@ -48,11 +51,13 @@ class _MotionOptionCard extends StatelessWidget {
     required this.motion,
     required this.selected,
     required this.onTap,
+    required this.compact,
   });
 
   final MotionPreset motion;
   final bool selected;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -77,50 +82,65 @@ class _MotionOptionCard extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.all(16),
+          constraints: BoxConstraints(minHeight: compact ? 68 : 0),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 14 : 16,
+            vertical: compact ? 10 : 16,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: borderColor, width: selected ? 2 : 1),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: compact
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: compact ? 36 : 42,
+                height: compact ? 36 : 42,
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(compact ? 12 : 14),
                 ),
                 child: Icon(_iconForMotion(motion), color: accentColor),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      motion.label,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                child: compact
+                    ? Text(
+                        motion.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            motion.label,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            motion.description,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      motion.description,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(width: 8),
               Icon(
                 selected ? Icons.check_circle : Icons.radio_button_unchecked,
                 color: accentColor,
-                size: 22,
+                size: compact ? 20 : 22,
               ),
             ],
           ),
@@ -136,6 +156,5 @@ IconData _iconForMotion(MotionPreset motion) {
     MotionPreset.bouncing => Icons.sports_basketball,
     MotionPreset.gliding => Icons.swap_horiz,
     MotionPreset.rolling => Icons.blur_circular,
-    MotionPreset.spinning => Icons.refresh,
   };
 }

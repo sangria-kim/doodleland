@@ -103,7 +103,7 @@ git commit
 feat: add motion preset selection on stage
 
 무대에서 캐릭터 추가 시 움직임 프리셋을 선택할 수 있도록 UI를 추가합니다.
-floating / bouncing / gliding / rolling / spinning 5종을 AnimationController로 구현합니다.
+floating / bouncing / gliding / rolling 4종을 AnimationController로 구현합니다.
 ```
 
 ```

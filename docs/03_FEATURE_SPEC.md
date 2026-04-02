@@ -128,7 +128,7 @@
 
 1. `objectMotion`
 - 그림 자체에 적용되는 애니메이션입니다.
-- 캐릭터 선택 시 고른 모션 프리셋(`floating / bouncing / gliding / rolling / spinning`)을 그대로 사용합니다.
+- 캐릭터 선택 시 고른 모션 프리셋(`floating / bouncing / gliding / rolling`)을 그대로 사용합니다.
 - 스테이지 좌표 이동과 독립적으로 동작합니다.
 
 2. `stageMotion`

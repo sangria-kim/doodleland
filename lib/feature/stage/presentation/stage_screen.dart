@@ -239,11 +239,8 @@ class _StageScreenState extends ConsumerState<StageScreen> {
   }
 
   Future<void> _openCharacterSelector(BuildContext context) async {
-    final selection = await showModalBottomSheet<CharacterPlacementSelection>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => const CharacterSelector(),
+    final selection = await context.push<CharacterPlacementSelection>(
+      '/stage/character-placement',
     );
 
     if (!context.mounted || selection == null) {
@@ -471,7 +468,6 @@ class _InteractivePlacedCharacterState
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
       MotionPreset.gliding => const Duration(milliseconds: 3000),
       MotionPreset.rolling => const Duration(milliseconds: 2500),
-      MotionPreset.spinning => const Duration(milliseconds: 1500),
     };
   }
 
@@ -606,7 +602,6 @@ class _InteractivePlacedCharacterState
       MotionPreset.bouncing => Offset(0.0, -wave.abs() * bouncingOffsetY),
       MotionPreset.gliding => Offset(0.0, wave * glidingOffsetY),
       MotionPreset.rolling => Offset.zero,
-      MotionPreset.spinning => Offset.zero,
     };
   }
 
@@ -615,7 +610,6 @@ class _InteractivePlacedCharacterState
     return switch (widget.placed.objectMotion) {
       MotionPreset.gliding => math.sin(cycle) * 0.08,
       MotionPreset.rolling => cycle,
-      MotionPreset.spinning => cycle * 1.5,
       _ => 0,
     };
   }
