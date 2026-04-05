@@ -17,15 +17,19 @@
 ### A-2. 이미지 크롭
 - 경로: `/capture/crop`
 - 동작:
-  - 진입 직후 네이티브 `image_cropper` 화면을 자동 실행
-  - 크롭 취소 시 `/capture`로 복귀
-  - 오류 발생 시 스낵바로 메시지 표시
-  - 원본 이미지가 남아 있으면 화면 하단에서 `크롭 다시 실행` 가능
+  - CaptureScreen에서 자동 인식(`DrawingRegionDetector`)을 먼저 실행
+  - `CropScreenArgs(sourceImagePath, detectionResult)`를 `GoRouter extra`로 전달
+  - CropScreen 진입 시 `DetectionResult.boundingBox`(정규화 좌표)를 viewport 좌표로 변환해 초기 박스로 반영
+  - 사용자가 크롭 영역을 조정하면 자동 인식 값보다 사용자 조정값을 우선 사용
 - 현재 구현 범위:
   - 자유 비율 크롭
-  - 비율 프리셋 `original / 3x2 / 4x3 / 16x9`
-- 현재 미구현:
-  - 자동 추천 크롭 박스
+  - 비율 프리셋 `1:1 / 4:3 / 16:9` + 자유
+  - 자동 인식 실패(`detected=false`) 시 기존 기본 초기 크롭(`viewportRect.deflate(16)`) fallback 유지
+
+### A-2-1. DetectionResult 좌표계
+- `boundingBox`는 원본 이미지 기준 정규화 좌표(`0.0~1.0`)로 정의합니다.
+- 값은 `left/top/right/bottom` 비율값이며 해상도에 독립적으로 전달됩니다.
+- CropScreen 연동 계층이 `imageRect` 기준으로 viewport 좌표 변환 책임을 가집니다.
 
 ### A-3. 저장 전 미리보기
 - 경로: `/capture/preview`
@@ -41,9 +45,17 @@
 - 실제 배경 제거는 `저장하기` 또는 `저장하고 하나 더!`를 눌렀을 때 실행합니다.
 - 처리 순서:
   1. 크롭 이미지를 원본 보관 경로로 복사
-  2. 규칙 기반 배경 제거 실행
+  2. `BackgroundRemover.remove(croppedImageBytes)` 실행
   3. 투명 PNG 기준 썸네일 생성
   4. DB에 캐릭터 메타데이터 저장
+- 배경 제거 마스크 구성:
+  - 선화 마스크
+  - 채색 마스크(Phase1 신규)
+  - 경계 보존 마스크
+  - 최종 결과는 세 마스크 union 후 noise component 제거
+- 실패 처리:
+  - 자동 인식 실패 또는 배경 제거 실패 시 사용자 메시지는 `"그림을 인식하지 못했어요"`로 통일
+  - 상세 실패 원인은 debug/log 데이터로만 관리
 - 저장 산출물:
   - `characters/original/*.png`
   - `characters/transparent/*.png`
@@ -193,6 +205,7 @@
 - 캐릭터가 없으면 중앙 안내 문구 표시
 
 ## D. 현재 구현상 문서 메모
-- `stage_painter.dart`, `background_selector.dart`, `image_processor.dart`는 placeholder 상태입니다.
+- `stage_painter.dart`, `background_selector.dart`는 placeholder 상태입니다.
 - 설계 문서상 "투명 결과 미리보기"와 달리 실제 코드는 저장 시점에 배경 제거가 실행됩니다.
 - 라이브러리는 현재 독립 라우트 없이 재사용 컴포넌트와 바텀시트 중심으로 사용됩니다.
+- Phase2 참고 사항(문서형/사진형 분기, 원근 보정, 모델 기반 분할)은 문서에만 유지하고 이번 구현 범위에서 제외합니다.

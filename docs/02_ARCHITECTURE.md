@@ -27,13 +27,16 @@ lib/
 ├── feature/
 │   ├── capture/
 │   │   ├── data/
+│   │   │   ├── background_removal_config.dart
 │   │   │   ├── background_remover.dart
+│   │   │   ├── drawing_region_detector.dart
 │   │   │   └── image_processor.dart
 │   │   ├── domain/
 │   │   │   └── save_character_usecase.dart
 │   │   └── presentation/
 │   │       ├── capture_screen.dart
 │   │       ├── capture_viewmodel.dart
+│   │       ├── crop_screen_args.dart
 │   │       ├── crop_screen.dart
 │   │       └── preview_screen.dart
 │   ├── home/
@@ -74,11 +77,10 @@ lib/
 ```
 
 ## 구현 상태 메모
-- `image_processor.dart`
 - `stage_painter.dart`
 - `background_selector.dart`
 
-위 3개 파일은 현재 placeholder 상태이며 실제 흐름에서 사용되지 않습니다.
+위 2개 파일은 현재 placeholder 상태이며 실제 흐름에서 사용되지 않습니다.
 
 ## 핵심 데이터 모델
 
@@ -192,6 +194,26 @@ class StageState {
 
 `isFull`은 파생 값으로 계산하며 최대 10개 배치를 기준으로 합니다.
 
+### CaptureDetectionResult (Phase1)
+```dart
+class DetectionResult {
+  final bool detected;
+  final Rect boundingBox; // normalized 0.0~1.0, original-image space
+  final double confidence;
+  final Map<String, Object?>? debugData;
+}
+```
+
+### BackgroundRemovalResult (Phase1)
+```dart
+class RemovalResult {
+  final bool success;
+  final Uint8List outputImageBytes; // transparent PNG
+  final Uint8List? maskBytes;
+  final Map<String, Object?>? debugData;
+}
+```
+
 ## DB 스키마
 
 ### characters
@@ -220,6 +242,22 @@ Repository
 DAO / File System / 이미지 처리
 ```
 
+## Capture 파이프라인 모듈 경계 (Phase1)
+
+- 자동 인식 모듈
+  - 인터페이스: `DrawingRegionDetector.detect(inputImageBytes)`
+  - 출력: `DetectionResult`
+  - 역할: 크롭 화면 초기 선택 영역 후보 제공
+- 배경 제거 모듈
+  - 인터페이스: `BackgroundRemover.remove(croppedImageBytes)`
+  - 출력: `RemovalResult`
+  - 역할: 저장 시 최종 투명 PNG 생성
+- UI/Flow 모듈
+  - CaptureScreen에서 자동 인식 실행
+  - `CropScreenArgs(sourceImagePath, detectionResult)`를 `GoRouter extra`로 전달
+  - CropScreen에서 정규화 bbox를 viewport 좌표로 변환해 `InitialRectBuilder`에 반영
+  - 사용자가 조정한 crop 값을 최우선으로 저장 처리에 사용
+
 현재 구현에서의 구체 예:
 - capture: `CaptureScreen` -> `CaptureViewModel` -> `SaveCharacterUseCase`
 - library: `LibraryViewModel` -> `GetCharactersUseCase` / `DeleteCharacterUseCase` -> `CharacterRepository`
@@ -231,7 +269,7 @@ DAO / File System / 이미지 처리
 |------|------|------|
 | `/` | `HomeScreen` | 홈 |
 | `/capture` | `CaptureScreen` | 소스 선택 |
-| `/capture/crop` | `CropScreen` | 크롭 진입 / 재실행 |
+| `/capture/crop` | `CropScreen` | 자동 인식 결과를 반영한 크롭 편집 |
 | `/capture/preview` | `PreviewScreen` | 저장 전 크롭 결과 확인 |
 | `/stage/background` | `BackgroundSelectScreen` | 배경 선택 |
 | `/stage` | `StageScreen` | 무대 |
@@ -239,6 +277,7 @@ DAO / File System / 이미지 처리
 추가 메모:
 - `LibraryScreen`은 구현되어 있지만 현재 라우터에 연결되어 있지 않습니다.
 - 무대에서 캐릭터 추가는 `CharacterSelector` 바텀시트로 처리합니다.
+- `/capture/crop` 이동 시 `extra`는 `CropScreenArgs`를 사용하며 `sourceImagePath`와 `detectionResult`를 함께 전달합니다.
 
 ## 의존성 주입
 
@@ -252,6 +291,8 @@ DAO / File System / 이미지 처리
 - `captureViewModelProvider`
 - `libraryViewModelProvider`
 - `saveCharacterUseCaseProvider`
+- `drawingRegionDetectorProvider`
+- `backgroundRemoverProvider`
 - `getCharactersUseCaseProvider`
 - `deleteCharacterUseCaseProvider`
 - `stageViewModelProvider`

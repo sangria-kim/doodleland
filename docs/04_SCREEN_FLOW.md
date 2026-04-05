@@ -5,8 +5,8 @@
 | 화면 | 경로 | 현재 역할 |
 |------|------|-----------|
 | 홈 | `/` | 시작 화면 |
-| 그림 가져오기 | `/capture` | 카메라/갤러리 선택 |
-| 이미지 크롭 | `/capture/crop` | 네이티브 크롭 진입 및 재실행 |
+| 그림 가져오기 | `/capture` | 카메라/갤러리 선택 + 자동 인식 실행 |
+| 이미지 크롭 | `/capture/crop` | 자동 인식 결과 기반 초기 박스 제공 + 수동 보정 |
 | 미리보기 | `/capture/preview` | 저장 전 크롭 결과 확인 |
 | 배경 고르기 | `/stage/background` | 5종 배경 선택 |
 | 무대 | `/stage` | 캐릭터 배치 및 상호작용 |
@@ -17,10 +17,11 @@
 [홈]
   ├─ 그림 만들기
   │   └─ [/capture]
-  │      └─ 이미지 선택
-  │         └─ [/capture/crop]
-  │            ├─ 크롭 취소 -> [/capture]
-  │            └─ 크롭 완료 -> [/capture/preview]
+  │      └─ 이미지 선택/촬영
+  │         └─ 자동 인식 실행
+  │            └─ [/capture/crop] (sourceImagePath + detectionResult 전달)
+  │               ├─ 크롭 취소 -> [/capture]
+  │               └─ 크롭 완료 -> [/capture/preview]
   │               ├─ 저장하기 -> 저장 처리 후 [/]
   │               ├─ 저장하고 하나 더! -> 저장 처리 후 [/capture]
   │               └─ 다시 찍기 -> [/capture]
@@ -52,17 +53,18 @@
 - 큰 버튼 2개:
   - `카메라로 찍기`
   - `갤러리에서 선택`
+- 이미지 선택 직후 자동 인식(`DrawingRegionDetector`) 실행
+- 자동 인식 결과는 `GoRouter extra`의 `CropScreenArgs`로 CropScreen에 전달
 - 처리 중 하단 `LinearProgressIndicator`
 
 ### 3. 이미지 크롭
 - AppBar 제목: `이미지 크롭`
-- 진입 즉시 네이티브 크롭 UI 호출
+- `DetectionResult.detected=true`면 자동 인식 bbox를 초기 크롭 박스로 반영
+- `DetectionResult.detected=false`면 기존 기본 크롭 상태(`viewportRect.deflate(16)`) 유지
 - 화면 자체는 다음 역할을 겸함:
-  - 원본 이미지가 남아 있을 때 임시 미리보기
-  - 크롭 재실행 버튼 제공
+  - 자동 제안 박스 기반의 빠른 저장 동선 제공
+  - 사용자 수동 보정(비율 선택/회전/초기화/적용)
   - 오류/취소 후 복구용 fallback
-- 하단 버튼:
-  - `크롭 다시 실행`
 
 ### 4. 미리보기
 - AppBar 제목: `미리보기`
@@ -133,5 +135,6 @@
 - 결과를 스낵바로 표시
 
 ## 현재 문서상 주의사항
-- 예전 문서에 있던 체크무늬 투명 미리보기, 자동 크롭 박스 추천, 가로 스크롤 배경 선택 UI는 현재 코드와 다릅니다.
+- 자동 인식은 CropScreen 진입 후 재실행하지 않고 CaptureScreen에서 1회 실행합니다.
+- 자동 인식 `confidence`는 현재 UI 분기에는 사용하지 않고 디버그/실험 지표로만 유지합니다.
 - 현재 무대 렌더링은 `CustomPainter`가 아니라 개별 위젯 오브젝트를 `Stack`으로 배치하는 구조입니다.
