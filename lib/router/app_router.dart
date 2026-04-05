@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../core/presentation/android_fullscreen_scope.dart';
 import '../feature/capture/presentation/capture_screen.dart';
 import '../feature/capture/presentation/crop_screen.dart';
+import '../feature/capture/presentation/crop_screen_args.dart';
 import '../feature/capture/presentation/preview_screen.dart';
 import '../feature/home/presentation/home_screen.dart';
 import '../feature/stage/presentation/background_select_screen.dart';
@@ -21,10 +22,10 @@ class AppRouter {
       GoRoute(
         path: '/capture/crop',
         builder: (context, state) {
-          final sourceImagePath = state.extra is String
-              ? state.extra as String
-              : '';
-          return CropScreen(sourceImagePath: sourceImagePath);
+          final args = state.extra is CropScreenArgs
+              ? state.extra as CropScreenArgs
+              : const CropScreenArgs(sourceImagePath: '');
+          return CropScreen(args: args);
         },
       ),
       GoRoute(

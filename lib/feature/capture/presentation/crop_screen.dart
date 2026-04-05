@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/image_processor.dart';
 import 'capture_viewmodel.dart';
+import 'crop_screen_args.dart';
 
 const double _controlButtonSize = 46;
 
@@ -30,9 +31,9 @@ extension on CropAspectPreset {
 }
 
 class CropScreen extends ConsumerStatefulWidget {
-  const CropScreen({super.key, required this.sourceImagePath});
+  const CropScreen({super.key, required this.args});
 
-  final String sourceImagePath;
+  final CropScreenArgs args;
 
   @override
   ConsumerState<CropScreen> createState() => _CropScreenState();
@@ -58,7 +59,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
   }
 
   Future<void> _loadImage() async {
-    if (widget.sourceImagePath.isEmpty) {
+    if (widget.args.sourceImagePath.isEmpty) {
       setState(() {
         _isPreparing = false;
         _errorMessage = '원본 이미지 경로가 비어 있습니다.';
@@ -69,7 +70,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
     try {
       final imageProcessor = ref.read(imageProcessorProvider);
       final editableImage = await imageProcessor.loadEditableImage(
-        widget.sourceImagePath,
+        widget.args.sourceImagePath,
       );
       if (!mounted) {
         return;
@@ -363,6 +364,42 @@ class _CropScreenState extends ConsumerState<CropScreen> {
     });
   }
 
+  Rect _buildDetectedInitialRect(Rect viewportRect, Rect imageRect) {
+    final fallback = viewportRect.deflate(16);
+    final detectionResult = widget.args.detectionResult;
+    if (!detectionResult.detected) {
+      return fallback;
+    }
+
+    final normalized = _normalizeRect(detectionResult.boundingBox);
+    if (normalized.width <= 0 || normalized.height <= 0) {
+      return fallback;
+    }
+
+    final candidate = Rect.fromLTRB(
+      imageRect.left + normalized.left * imageRect.width,
+      imageRect.top + normalized.top * imageRect.height,
+      imageRect.left + normalized.right * imageRect.width,
+      imageRect.top + normalized.bottom * imageRect.height,
+    ).intersect(imageRect);
+
+    if (candidate.width < 24 || candidate.height < 24) {
+      return fallback;
+    }
+    return candidate;
+  }
+
+  Rect _normalizeRect(Rect rect) {
+    final left = rect.left.clamp(0.0, 1.0).toDouble();
+    final top = rect.top.clamp(0.0, 1.0).toDouble();
+    final right = rect.right.clamp(0.0, 1.0).toDouble();
+    final bottom = rect.bottom.clamp(0.0, 1.0).toDouble();
+    if (right <= left || bottom <= top) {
+      return Rect.zero;
+    }
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -489,9 +526,7 @@ class _CropScreenState extends ConsumerState<CropScreen> {
       controller: _cropController,
       aspectRatio: aspectRatio,
       initialRectBuilder: aspectRatio == null
-          ? InitialRectBuilder.withBuilder(
-              (viewportRect, imageRect) => viewportRect.deflate(16),
-            )
+          ? InitialRectBuilder.withBuilder(_buildDetectedInitialRect)
           : InitialRectBuilder.withSizeAndRatio(
               size: 1,
               aspectRatio: aspectRatio,

@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/permission/common_permission.dart';
+import '../data/drawing_region_detector.dart';
 import '../domain/save_character_usecase.dart';
+import 'crop_screen_args.dart';
 
 class CaptureState {
   const CaptureState({
@@ -35,24 +39,26 @@ class CaptureState {
   bool get hasFeedback => feedbackMessage != null;
 }
 
-enum CaptureImageSource {
-  camera,
-  gallery,
-}
+enum CaptureImageSource { camera, gallery }
 
 class CaptureViewModel extends StateNotifier<CaptureState> {
   CaptureViewModel({
     required ImagePicker imagePicker,
     required PermissionResultMapper permissionResultMapper,
     required SaveCharacterUseCase saveCharacterUseCase,
-  })  : _imagePicker = imagePicker,
-        _permissionResultMapper = permissionResultMapper,
-        _saveCharacterUseCase = saveCharacterUseCase,
-        super(const CaptureState());
+    required DrawingRegionDetector drawingRegionDetector,
+  }) : _imagePicker = imagePicker,
+       _permissionResultMapper = permissionResultMapper,
+       _saveCharacterUseCase = saveCharacterUseCase,
+       _drawingRegionDetector = drawingRegionDetector,
+       super(const CaptureState());
+
+  static const String recognitionFailureMessage = '그림을 인식하지 못했어요';
 
   final ImagePicker _imagePicker;
   final PermissionResultMapper _permissionResultMapper;
   final SaveCharacterUseCase _saveCharacterUseCase;
+  final DrawingRegionDetector _drawingRegionDetector;
 
   Future<String?> pickImage(CaptureImageSource source) async {
     if (state.isBusy) return null;
@@ -63,7 +69,9 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
       CaptureImageSource.camera => Permission.camera,
       CaptureImageSource.gallery => Permission.photos,
     };
-    final permissionResult = await _permissionResultMapper.ensureGranted(permission);
+    final permissionResult = await _permissionResultMapper.ensureGranted(
+      permission,
+    );
     if (!permissionResult.isGranted) {
       state = state.copyWith(
         isBusy: false,
@@ -113,9 +121,40 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
     } catch (error) {
       state = state.copyWith(
         isBusy: false,
-        feedbackMessage: '저장 중 오류가 발생했습니다: $error',
+        feedbackMessage: recognitionFailureMessage,
       );
       return null;
+    }
+  }
+
+  Future<CropScreenArgs?> pickImageAndDetect(CaptureImageSource source) async {
+    final selectedImagePath = await pickImage(source);
+    if (selectedImagePath == null) {
+      return null;
+    }
+
+    state = state.copyWith(isBusy: true, feedbackMessage: null);
+    try {
+      final bytes = await File(selectedImagePath).readAsBytes();
+      final detectionResult = await _drawingRegionDetector.detect(bytes);
+      state = state.copyWith(
+        isBusy: false,
+        selectedImagePath: selectedImagePath,
+      );
+      return CropScreenArgs(
+        sourceImagePath: selectedImagePath,
+        detectionResult: detectionResult,
+      );
+    } catch (_) {
+      state = state.copyWith(
+        isBusy: false,
+        selectedImagePath: selectedImagePath,
+        feedbackMessage: recognitionFailureMessage,
+      );
+      return CropScreenArgs(
+        sourceImagePath: selectedImagePath,
+        detectionResult: DetectionResult.fallback,
+      );
     }
   }
 
@@ -128,9 +167,10 @@ final imagePickerProvider = Provider<ImagePicker>((_) => ImagePicker());
 
 final captureViewModelProvider =
     StateNotifierProvider<CaptureViewModel, CaptureState>(
-  (ref) => CaptureViewModel(
-    imagePicker: ref.watch(imagePickerProvider),
-    permissionResultMapper: const PermissionResultMapper(),
-    saveCharacterUseCase: ref.watch(saveCharacterUseCaseProvider),
-  ),
-);
+      (ref) => CaptureViewModel(
+        imagePicker: ref.watch(imagePickerProvider),
+        permissionResultMapper: const PermissionResultMapper(),
+        saveCharacterUseCase: ref.watch(saveCharacterUseCaseProvider),
+        drawingRegionDetector: ref.watch(drawingRegionDetectorProvider),
+      ),
+    );

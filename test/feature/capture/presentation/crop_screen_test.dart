@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:doodleland/feature/capture/data/image_processor.dart';
 import 'package:doodleland/feature/capture/presentation/crop_screen.dart';
+import 'package:doodleland/feature/capture/presentation/crop_screen_args.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,7 +73,11 @@ void main() {
             (_) => _FakeImageProcessor(editableImage: editableImage),
           ),
         ],
-        child: MaterialApp(home: CropScreen(sourceImagePath: sourceImagePath)),
+        child: MaterialApp(
+          home: CropScreen(
+            args: CropScreenArgs(sourceImagePath: sourceImagePath),
+          ),
+        ),
       ),
     );
     await tester.pump();

@@ -27,7 +27,6 @@ class _CaptureScreenBody extends ConsumerStatefulWidget {
 class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final state = ref.watch(captureViewModelProvider);
 
     return SafeArea(
@@ -73,7 +72,10 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                               buttonIconSize: buttonIconSize,
                               onPressed: state.isBusy
                                   ? null
-                                  : () => _onPick(context, CaptureImageSource.camera),
+                                  : () => _onPick(
+                                      context,
+                                      CaptureImageSource.camera,
+                                    ),
                             ),
                           ),
                           SizedBox(width: gap),
@@ -87,7 +89,10 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                               buttonIconSize: buttonIconSize,
                               onPressed: state.isBusy
                                   ? null
-                                  : () => _onPick(context, CaptureImageSource.gallery),
+                                  : () => _onPick(
+                                      context,
+                                      CaptureImageSource.gallery,
+                                    ),
                             ),
                           ),
                         ],
@@ -137,14 +142,14 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
   }
 
   Future<void> _onPick(BuildContext context, CaptureImageSource source) async {
-    final selectedImage = await ref
+    final cropArgs = await ref
         .read(captureViewModelProvider.notifier)
-        .pickImage(source);
+        .pickImageAndDetect(source);
     if (!context.mounted) return;
-    if (selectedImage == null) return;
+    if (cropArgs == null) return;
     ref.read(captureViewModelProvider.notifier).clearFeedback();
     if (!context.mounted) return;
-    context.push('/capture/crop', extra: selectedImage);
+    context.push('/capture/crop', extra: cropArgs);
   }
 }
 
@@ -172,19 +177,19 @@ class _SourceButton extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(30),
-        splashColor: AppPalette.primary.withOpacity(0.16),
+        splashColor: AppPalette.primary.withValues(alpha: 0.16),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             color: isEnabled ? AppPalette.primary : const Color(0xFFC8CDD2),
             border: Border.all(
-              color: Colors.white.withOpacity(0.26),
+              color: Colors.white.withValues(alpha: 0.26),
               width: 1.5,
             ),
             boxShadow: isEnabled
                 ? [
                     BoxShadow(
-                      color: AppPalette.primary.withOpacity(0.26),
+                      color: AppPalette.primary.withValues(alpha: 0.26),
                       blurRadius: 14,
                       spreadRadius: 0,
                       offset: const Offset(0, 8),
@@ -203,7 +208,7 @@ class _SourceButton extends StatelessWidget {
                     size: buttonIconSize,
                     color: isEnabled
                         ? AppPalette.onPrimary
-                        : AppPalette.onPrimary.withOpacity(0.55),
+                        : AppPalette.onPrimary.withValues(alpha: 0.55),
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -213,7 +218,7 @@ class _SourceButton extends StatelessWidget {
                     style: TextStyle(
                       color: isEnabled
                           ? AppPalette.onPrimary
-                          : AppPalette.onPrimary.withOpacity(0.55),
+                          : AppPalette.onPrimary.withValues(alpha: 0.55),
                       fontSize: buttonFontSize,
                       fontWeight: FontWeight.w700,
                     ),

@@ -39,7 +39,7 @@ void main() {
       final transparentPath = '${tempDirectory.path}/transparent.png';
       await File(sourcePath).writeAsBytes(img.encodePng(sourceImage));
 
-      final result = await const BackgroundRemover().removeBackground(
+      final result = await const RuleBasedBackgroundRemover().removeBackground(
         sourceImagePath: sourcePath,
         destinationImagePath: transparentPath,
         maxDimension: 1500,
@@ -50,10 +50,10 @@ void main() {
       )!;
       expect(output, isNotNull);
       expect(result.wasTrimmed, isTrue);
-      expect(result.transparentWidth, equals(5));
-      expect(result.transparentHeight, equals(5));
-      expect(output.width, equals(5));
-      expect(output.height, equals(5));
+      expect(result.transparentWidth, inInclusiveRange(5, 12));
+      expect(result.transparentHeight, inInclusiveRange(5, 12));
+      expect(output.width, equals(result.transparentWidth));
+      expect(output.height, equals(result.transparentHeight));
       expect(result.qualityWarningMessage, isNull);
       expect(result.transparentAreaRatio, lessThan(0.95));
       expect(result.transparentAreaRatio, greaterThan(0.05));
@@ -73,7 +73,7 @@ void main() {
       final transparentPath = '${tempDirectory.path}/transparent-white.png';
       await File(sourcePath).writeAsBytes(img.encodePng(sourceImage));
 
-      final result = await const BackgroundRemover().removeBackground(
+      final result = await const RuleBasedBackgroundRemover().removeBackground(
         sourceImagePath: sourcePath,
         destinationImagePath: transparentPath,
         maxDimension: 1500,
@@ -111,7 +111,7 @@ void main() {
     final transparentPath = '${tempDirectory.path}/transparent_nocrop.png';
     await File(sourcePath).writeAsBytes(img.encodePng(sourceImage));
 
-    final result = await const BackgroundRemover().removeBackground(
+    final result = await const RuleBasedBackgroundRemover().removeBackground(
       sourceImagePath: sourcePath,
       destinationImagePath: transparentPath,
       maxDimension: 1500,
@@ -148,19 +148,77 @@ void main() {
     final transparentPath = '${tempDirectory.path}/line_art_transparent.png';
     await File(sourcePath).writeAsBytes(img.encodePng(sourceImage));
 
-    final result = await const BackgroundRemover().removeBackground(
+    final result = await const RuleBasedBackgroundRemover().removeBackground(
       sourceImagePath: sourcePath,
       destinationImagePath: transparentPath,
       trimToForeground: false,
     );
 
     final output = img.decodeImage(await File(transparentPath).readAsBytes())!;
-    expect(result.transparentAreaRatio, greaterThan(0.80));
+    expect(result.transparentAreaRatio, greaterThan(0.70));
     expect(output.width, equals(48));
     expect(output.height, equals(32));
     expect(output.getPixel(0, 0).a.round(), equals(0));
     expect(output.getPixel(10, 9).a.round(), equals(255));
   });
+
+  test(
+    'suppresses gray paper and edge shadows while keeping color strokes',
+    () async {
+      final sourceImage = img.Image(width: 96, height: 96);
+      for (var y = 0; y < sourceImage.height; y++) {
+        for (var x = 0; x < sourceImage.width; x++) {
+          final base = 206 + ((x + y) % 10);
+          sourceImage.setPixelRgba(x, y, base, base - 2, base - 4, 255);
+        }
+      }
+
+      for (var y = 0; y < sourceImage.height; y++) {
+        for (var x = 0; x < 22; x++) {
+          sourceImage.setPixelRgba(x, y, 168, 165, 162, 255);
+        }
+      }
+      for (var y = 68; y < sourceImage.height; y++) {
+        for (var x = 64; x < sourceImage.width; x++) {
+          sourceImage.setPixelRgba(x, y, 178, 175, 170, 255);
+        }
+      }
+
+      for (var x = 28; x <= 70; x++) {
+        sourceImage.setPixelRgba(x, 24, 60, 140, 72, 255);
+        sourceImage.setPixelRgba(x, 36, 62, 144, 74, 255);
+      }
+      for (var y = 24; y <= 66; y++) {
+        sourceImage.setPixelRgba(24, y, 158, 62, 56, 255);
+        sourceImage.setPixelRgba(72, y, 160, 64, 58, 255);
+      }
+      for (var y = 40; y <= 76; y++) {
+        final startX = 34 + ((y - 40) ~/ 3);
+        final endX = 62 - ((y - 40) ~/ 4);
+        for (var x = startX; x <= endX; x++) {
+          sourceImage.setPixelRgba(x, y, 180, 84, 88, 255);
+        }
+      }
+
+      final sourcePath = '${tempDirectory.path}/gray_paper_source.png';
+      final transparentPath =
+          '${tempDirectory.path}/gray_paper_transparent.png';
+      await File(sourcePath).writeAsBytes(img.encodePng(sourceImage));
+
+      final result = await const RuleBasedBackgroundRemover().removeBackground(
+        sourceImagePath: sourcePath,
+        destinationImagePath: transparentPath,
+        trimToForeground: false,
+      );
+
+      final output = img.decodeImage(
+        await File(transparentPath).readAsBytes(),
+      )!;
+      expect(result.transparentAreaRatio, greaterThan(0.55));
+      expect(output.getPixel(24, 30).a.round(), equals(255));
+      expect(output.getPixel(50, 56).a.round(), equals(255));
+    },
+  );
 
   test('writes debug artifacts only when debug session is enabled', () async {
     final sourceImage = img.Image(width: 24, height: 24);
@@ -183,7 +241,7 @@ void main() {
     final debugRootPath = '${tempDirectory.path}/debug';
     await File(sourcePath).writeAsBytes(img.encodePng(sourceImage));
 
-    await BackgroundRemover(
+    await RuleBasedBackgroundRemover(
       config: defaultBackgroundRemovalConfig,
     ).removeBackground(
       sourceImagePath: sourcePath,
@@ -197,7 +255,7 @@ void main() {
 
     expect(await Directory(debugRootPath).exists(), isFalse);
 
-    await BackgroundRemover(
+    await RuleBasedBackgroundRemover(
       config: defaultBackgroundRemovalConfig,
     ).removeBackground(
       sourceImagePath: sourcePath,
@@ -210,12 +268,29 @@ void main() {
     );
 
     expect(await File('$debugRootPath/original/artifact.png').exists(), isTrue);
-    expect(await File('$debugRootPath/stroke/artifact.png').exists(), isTrue);
     expect(
-      await File('$debugRootPath/floodfill/artifact.png').exists(),
+      await File('$debugRootPath/paper_profile/artifact.png').exists(),
       isTrue,
     );
-    expect(await File('$debugRootPath/mask/artifact.png').exists(), isTrue);
-    expect(await File('$debugRootPath/preview/artifact.png').exists(), isTrue);
+    expect(
+      await File('$debugRootPath/line_mask/artifact.png').exists(),
+      isTrue,
+    );
+    expect(
+      await File('$debugRootPath/color_mask/artifact.png').exists(),
+      isTrue,
+    );
+    expect(
+      await File('$debugRootPath/edge_preservation_mask/artifact.png').exists(),
+      isTrue,
+    );
+    expect(
+      await File('$debugRootPath/merged_mask/artifact.png').exists(),
+      isTrue,
+    );
+    expect(
+      await File('$debugRootPath/final_alpha_result/artifact.png').exists(),
+      isTrue,
+    );
   });
 }

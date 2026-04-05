@@ -16,18 +16,25 @@
 ## 🚧 현재 상태
 
 **진행 중인 작업**
-- 그림 자동 인식 + 배경 제거 개선 Phase1 구현
+- 없음
 
 **해결 필요한 블로킹 이슈**
 - 없음
 
 **다음 예정 작업**
-- Capture 단계 자동 인식 결과를 Crop 초기 박스에 연결
-- BackgroundRemover 인터페이스 추상화 및 채색 마스크 패스 추가
-- 실패 메시지 단일화(`그림을 인식하지 못했어요`)와 debug/release 분리 점검
+- 실제 기기 샘플(회색/유색 용지) 기준 배경 제거 threshold 튜닝
+- 저장 전 화면과 실제 투명 결과 표시 흐름 정합화
+- 둥실 둥실/기차 이동 등 추가 stage motion 확장
 ---
 
 ## 📝 커밋 로그
+
+### 2026-04-06
+
+#### feat: add phase1 drawing detection and background removal upgrades
+- Capture 단계 자동 인식 모듈을 추가하고 DetectionResult 정규화 좌표를 Crop 초기 박스에 연동했습니다.
+- BackgroundRemover를 인터페이스 중심으로 재구성하고 선화/채색/경계 보존 union 마스크와 회색 종이 억제 후처리를 적용했습니다.
+- 관련 테스트를 보강하고 버전을 `1.8.0+10800`으로 상향했습니다.
 
 ### 2026-04-05
 

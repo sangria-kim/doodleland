@@ -2,11 +2,58 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
 import 'background_removal_config.dart';
+
+class RemovalResult {
+  const RemovalResult({
+    required this.success,
+    required this.outputImageBytes,
+    this.maskBytes,
+    this.debugData,
+    required this.transparentAreaRatio,
+    this.qualityWarningMessage,
+    required this.outputWidth,
+    required this.outputHeight,
+    this.wasTrimmed = false,
+    this.errorMessage,
+  });
+
+  RemovalResult.failure({this.errorMessage, this.debugData})
+    : success = false,
+      outputImageBytes = Uint8List(0),
+      maskBytes = null,
+      transparentAreaRatio = 0,
+      qualityWarningMessage = null,
+      outputWidth = 0,
+      outputHeight = 0,
+      wasTrimmed = false;
+
+  final bool success;
+  final Uint8List outputImageBytes;
+  final Uint8List? maskBytes;
+  final Map<String, Object?>? debugData;
+
+  final double transparentAreaRatio;
+  final String? qualityWarningMessage;
+  final int outputWidth;
+  final int outputHeight;
+  final bool wasTrimmed;
+  final String? errorMessage;
+}
+
+abstract class BackgroundRemover {
+  Future<RemovalResult> remove(
+    Uint8List croppedImageBytes, {
+    int? maxDimension,
+    bool trimToForeground = false,
+    BackgroundRemovalDebugSession? debugSession,
+  });
+}
 
 class BackgroundRemovalResult {
   const BackgroundRemovalResult({
@@ -26,10 +73,12 @@ class BackgroundRemovalResult {
 
 enum BackgroundRemovalDebugArtifact {
   original('original'),
-  stroke('stroke'),
-  floodfill('floodfill'),
-  mask('mask'),
-  preview('preview');
+  paperProfile('paper_profile'),
+  lineMask('line_mask'),
+  colorMask('color_mask'),
+  edgePreservationMask('edge_preservation_mask'),
+  mergedMask('merged_mask'),
+  finalAlphaResult('final_alpha_result');
 
   const BackgroundRemovalDebugArtifact(this.directoryName);
 
@@ -50,10 +99,68 @@ class BackgroundRemovalDebugSession {
   bool get isEnabled => rootDirectoryPath.isNotEmpty && fileName.isNotEmpty;
 }
 
-class BackgroundRemover {
-  const BackgroundRemover({this.config = defaultBackgroundRemovalConfig});
+class RuleBasedBackgroundRemover implements BackgroundRemover {
+  const RuleBasedBackgroundRemover({
+    this.config = defaultBackgroundRemovalConfig,
+  });
 
   final BackgroundRemovalConfig config;
+
+  @override
+  Future<RemovalResult> remove(
+    Uint8List croppedImageBytes, {
+    int? maxDimension,
+    bool trimToForeground = false,
+    BackgroundRemovalDebugSession? debugSession,
+  }) async {
+    if (croppedImageBytes.isEmpty) {
+      return RemovalResult.failure(errorMessage: '이미지가 비어 있습니다.');
+    }
+
+    try {
+      final result = await Isolate.run(
+        () => _removeBackgroundInIsolate(
+          sourceBytes: croppedImageBytes,
+          trimToForeground: trimToForeground,
+          config: config,
+          maxDimension: maxDimension ?? config.maxProcessingDimension,
+          debugArtifacts: debugSession?.artifacts ?? const [],
+        ),
+      );
+
+      if (debugSession != null && debugSession.isEnabled) {
+        await _writeDebugArtifacts(
+          debugSession: debugSession,
+          debugImages: result.debugImages,
+        );
+      }
+
+      if (kDebugMode) {
+        debugPrint(
+          '[capture] remover=RuleBasedBackgroundRemover '
+          'success=${result.success} trimmed=${result.wasTrimmed} '
+          'ratio=${result.transparentAreaRatio.toStringAsFixed(3)}',
+        );
+      }
+
+      return RemovalResult(
+        success: result.success,
+        outputImageBytes: Uint8List.fromList(result.pngBytes),
+        maskBytes: result.maskPngBytes == null
+            ? null
+            : Uint8List.fromList(result.maskPngBytes!),
+        debugData: result.debugData,
+        transparentAreaRatio: result.transparentAreaRatio,
+        qualityWarningMessage: result.qualityWarningMessage,
+        outputWidth: result.outputWidth,
+        outputHeight: result.outputHeight,
+        wasTrimmed: result.wasTrimmed,
+        errorMessage: result.errorMessage,
+      );
+    } catch (error) {
+      return RemovalResult.failure(errorMessage: '$error');
+    }
+  }
 
   Future<BackgroundRemovalResult> removeBackground({
     required String sourceImagePath,
@@ -68,31 +175,24 @@ class BackgroundRemover {
     }
 
     final bytes = await sourceFile.readAsBytes();
-    final result = await Isolate.run(
-      () => _removeBackgroundInIsolate(
-        sourceBytes: bytes,
-        trimToForeground: trimToForeground,
-        config: config,
-        maxDimension: maxDimension ?? config.maxProcessingDimension,
-        debugArtifacts: debugSession?.artifacts ?? const [],
-      ),
+    final result = await remove(
+      bytes,
+      maxDimension: maxDimension,
+      trimToForeground: trimToForeground,
+      debugSession: debugSession,
     );
+    if (!result.success) {
+      throw StateError(result.errorMessage ?? '배경 제거에 실패했습니다.');
+    }
 
     await File(destinationImagePath).parent.create(recursive: true);
-    await File(destinationImagePath).writeAsBytes(result.pngBytes);
-
-    if (debugSession != null && debugSession.isEnabled) {
-      await _writeDebugArtifacts(
-        debugSession: debugSession,
-        debugImages: result.debugImages,
-      );
-    }
+    await File(destinationImagePath).writeAsBytes(result.outputImageBytes);
 
     return BackgroundRemovalResult(
       transparentAreaRatio: result.transparentAreaRatio,
       qualityWarningMessage: result.qualityWarningMessage,
-      transparentWidth: result.transparentWidth,
-      transparentHeight: result.transparentHeight,
+      transparentWidth: result.outputWidth,
+      transparentHeight: result.outputHeight,
       wasTrimmed: result.wasTrimmed,
     );
   }
@@ -179,7 +279,6 @@ class BackgroundRemover {
       ..sort();
     final luminanceCutoff =
         sortedLuminance[((sortedLuminance.length - 1) * 0.65).round()];
-
     final brightCandidates = samples
         .where(
           (sample) =>
@@ -225,6 +324,8 @@ class BackgroundRemover {
     final totalPixels = image.width * image.height;
     final scores = Uint8List(totalPixels);
     final distances = Uint8List(totalPixels);
+    final saturations = Uint8List(totalPixels);
+    final luminances = Uint8List(totalPixels);
     final histogram = List<int>.filled(256, 0);
 
     for (var y = 0; y < image.height; y++) {
@@ -237,13 +338,22 @@ class BackgroundRemover {
         final distance = _colorDistance(r, g, b, paper.r, paper.g, paper.b);
         final luminance = ((r + g + b) / 3).round();
         final saturation = (max(r, max(g, b)) - min(r, min(g, b))).toInt();
-        final darkness = max(0, paper.luminance - luminance);
+        final darkness = max(0, paper.luminance - luminance - 12);
+        var darknessWeight = 1.35;
+        if (saturation <= 8 && distance <= paper.distanceTolerance + 10) {
+          darknessWeight = 0.55;
+        }
+        if (saturation <= 8 && darkness >= 46) {
+          darknessWeight = max(darknessWeight, 1.0);
+        }
         final score = max(
           distance.toDouble(),
-          darkness * 1.35 + saturation * 0.65,
+          darkness * darknessWeight + saturation * 0.65,
         ).round().clamp(0, 255);
         scores[index] = score;
         distances[index] = distance;
+        saturations[index] = saturation;
+        luminances[index] = luminance;
         histogram[score]++;
       }
     }
@@ -251,6 +361,8 @@ class BackgroundRemover {
     return _ForegroundScoreMap(
       scores: scores,
       paperDistances: distances,
+      saturations: saturations,
+      luminances: luminances,
       otsuThreshold: _computeOtsuThreshold(histogram, totalPixels),
     );
   }
@@ -261,6 +373,78 @@ class BackgroundRemover {
       (index) => scores[index] >= threshold,
       growable: false,
     );
+  }
+
+  static List<bool> _refineLineSeedMask(
+    List<bool> strongMask, {
+    required _ForegroundScoreMap scoreMap,
+    required _PaperProfile paper,
+    required int strongThreshold,
+  }) {
+    return List<bool>.generate(strongMask.length, (index) {
+      if (!strongMask[index]) {
+        return false;
+      }
+
+      final saturation = scoreMap.saturations[index];
+      final paperDistance = scoreMap.paperDistances[index];
+      final score = scoreMap.scores[index];
+      final clearlyDifferentFromPaper =
+          paperDistance >= paper.distanceTolerance + 8;
+      final coloredStroke = saturation >= 8;
+      final strongDarkStroke =
+          score >= strongThreshold + 14 &&
+          paperDistance >= paper.distanceTolerance + 4;
+
+      return clearlyDifferentFromPaper || coloredStroke || strongDarkStroke;
+    }, growable: false);
+  }
+
+  static List<bool> _buildColorMask(
+    _ForegroundScoreMap scoreMap, {
+    required _PaperProfile paper,
+    required int weakThreshold,
+  }) {
+    return List<bool>.generate(scoreMap.scores.length, (index) {
+      final saturation = scoreMap.saturations[index];
+      final paperDistance = scoreMap.paperDistances[index];
+      final luminance = scoreMap.luminances[index];
+      final darkness = max(0, paper.luminance - luminance);
+
+      final highSaturationCandidate =
+          saturation >= 16 &&
+          paperDistance >= max(18, paper.distanceTolerance - 8);
+      final darkColorCandidate =
+          saturation >= 10 &&
+          darkness >= 18 &&
+          paperDistance >= max(12, weakThreshold - 2);
+      final lowSaturationDarkCandidate =
+          saturation >= 6 && darkness >= 28 && paperDistance >= 18;
+
+      return highSaturationCandidate ||
+          darkColorCandidate ||
+          lowSaturationDarkCandidate;
+    }, growable: false);
+  }
+
+  static List<bool> _unionMasks(List<List<bool>> masks) {
+    if (masks.isEmpty) {
+      return const <bool>[];
+    }
+
+    final length = masks.first.length;
+    final union = List<bool>.filled(length, false);
+    for (var index = 0; index < length; index++) {
+      var isForeground = false;
+      for (final mask in masks) {
+        if (mask[index]) {
+          isForeground = true;
+          break;
+        }
+      }
+      union[index] = isForeground;
+    }
+    return union;
   }
 
   static List<bool> _dilateMask(
@@ -346,9 +530,11 @@ class BackgroundRemover {
 
   static List<bool> _floodFillBackground(
     img.Image image, {
-    required List<bool> strokeBarrierMask,
+    required List<bool> barrierMask,
     required Uint8List scores,
     required Uint8List paperDistances,
+    required Uint8List saturations,
+    required Uint8List luminances,
     required int weakThreshold,
     required int strongThreshold,
     required _PaperProfile paper,
@@ -363,13 +549,33 @@ class BackgroundRemover {
       255,
       max(paper.distanceTolerance + 12, weakThreshold + 4),
     );
+    final loosePaperDistanceThreshold = min(
+      255,
+      max(paper.distanceTolerance + 26, weakThreshold + 18),
+    );
+    const lowSaturationThreshold = 26;
+    const luminanceDeltaThreshold = 54;
 
     bool canVisit(int index) {
-      if (strokeBarrierMask[index]) {
+      if (barrierMask[index]) {
         return false;
       }
-      return scores[index] <= backgroundScoreThreshold &&
-          paperDistances[index] <= paperDistanceThreshold;
+
+      final score = scores[index];
+      final paperDistance = paperDistances[index];
+      if (score <= backgroundScoreThreshold &&
+          paperDistance <= paperDistanceThreshold) {
+        return true;
+      }
+
+      final saturation = saturations[index];
+      final luminance = luminances[index];
+      final luminanceDelta = (luminance - paper.luminance).abs();
+      final looseBackgroundCandidate =
+          paperDistance <= loosePaperDistanceThreshold &&
+          saturation <= lowSaturationThreshold &&
+          luminanceDelta <= luminanceDeltaThreshold;
+      return looseBackgroundCandidate;
     }
 
     void enqueue(int index) {
@@ -408,6 +614,177 @@ class BackgroundRemover {
     }
 
     return visited;
+  }
+
+  static List<bool> _suppressEdgeConnectedBackgroundLikeComponents(
+    int width,
+    int height,
+    List<bool> mask, {
+    required Uint8List paperDistances,
+    required Uint8List saturations,
+    required Uint8List scores,
+    required _PaperProfile paper,
+    required int strongThreshold,
+  }) {
+    final total = width * height;
+    final visited = List<bool>.filled(total, false);
+    final output = List<bool>.from(mask, growable: false);
+    final queue = ListQueue<int>();
+
+    for (var start = 0; start < total; start++) {
+      if (!mask[start] || visited[start]) {
+        continue;
+      }
+
+      var touchesEdge = false;
+      var count = 0;
+      var strongInkCount = 0;
+      var saturationSum = 0;
+      var distanceSum = 0;
+      final component = <int>[];
+      visited[start] = true;
+      queue.add(start);
+
+      while (queue.isNotEmpty) {
+        final index = queue.removeFirst();
+        component.add(index);
+        count++;
+        final x = index % width;
+        final y = index ~/ width;
+        if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
+          touchesEdge = true;
+        }
+
+        final saturation = saturations[index];
+        final paperDistance = paperDistances[index];
+        final score = scores[index];
+        saturationSum += saturation;
+        distanceSum += paperDistance;
+        if (score >= strongThreshold || saturation >= 24) {
+          strongInkCount++;
+        }
+
+        if (x > 0) {
+          final next = index - 1;
+          if (!visited[next] && mask[next]) {
+            visited[next] = true;
+            queue.add(next);
+          }
+        }
+        if (x < width - 1) {
+          final next = index + 1;
+          if (!visited[next] && mask[next]) {
+            visited[next] = true;
+            queue.add(next);
+          }
+        }
+        if (y > 0) {
+          final next = index - width;
+          if (!visited[next] && mask[next]) {
+            visited[next] = true;
+            queue.add(next);
+          }
+        }
+        if (y < height - 1) {
+          final next = index + width;
+          if (!visited[next] && mask[next]) {
+            visited[next] = true;
+            queue.add(next);
+          }
+        }
+      }
+
+      if (!touchesEdge || count == 0) {
+        continue;
+      }
+
+      final avgSaturation = saturationSum / count;
+      final avgDistance = distanceSum / count;
+      final strongInkRatio = strongInkCount / count;
+      final isLargeEdgeComponent = count >= (total * 0.08).round();
+      final removeLargeBackgroundLike =
+          isLargeEdgeComponent && strongInkRatio < 0.14 && avgSaturation < 22;
+      final keepEdgeComponent =
+          !removeLargeBackgroundLike &&
+          (strongInkRatio >= 0.1 ||
+              avgDistance >= paper.distanceTolerance + 30 ||
+              avgSaturation >= 22);
+
+      if (!keepEdgeComponent) {
+        for (final index in component) {
+          output[index] = false;
+        }
+      }
+    }
+
+    return output;
+  }
+
+  static List<bool> _stripBorderPaperLikePixels(
+    int width,
+    int height,
+    List<bool> mask, {
+    required Uint8List paperDistances,
+    required Uint8List saturations,
+    required Uint8List scores,
+    required _PaperProfile paper,
+    required int strongThreshold,
+  }) {
+    final total = width * height;
+    final output = List<bool>.from(mask, growable: false);
+    final visited = List<bool>.filled(total, false);
+    final queue = ListQueue<int>();
+    final maxPaperDistance = paper.distanceTolerance + 40;
+    final maxScore = strongThreshold + 22;
+    const maxSaturation = 30;
+
+    bool isBorderPaperLike(int index) {
+      if (!output[index]) {
+        return false;
+      }
+      return saturations[index] <= maxSaturation &&
+          paperDistances[index] <= maxPaperDistance &&
+          scores[index] <= maxScore;
+    }
+
+    void enqueue(int index) {
+      if (visited[index] || !isBorderPaperLike(index)) {
+        return;
+      }
+      visited[index] = true;
+      queue.add(index);
+    }
+
+    for (var x = 0; x < width; x++) {
+      enqueue(x);
+      enqueue((height - 1) * width + x);
+    }
+    for (var y = 0; y < height; y++) {
+      enqueue(y * width);
+      enqueue(y * width + (width - 1));
+    }
+
+    while (queue.isNotEmpty) {
+      final index = queue.removeFirst();
+      output[index] = false;
+      final x = index % width;
+      final y = index ~/ width;
+
+      if (x > 0) {
+        enqueue(index - 1);
+      }
+      if (x < width - 1) {
+        enqueue(index + 1);
+      }
+      if (y > 0) {
+        enqueue(index - width);
+      }
+      if (y < height - 1) {
+        enqueue(index + width);
+      }
+    }
+
+    return output;
   }
 
   static List<bool> _removeSmallComponents(
@@ -493,21 +870,29 @@ class BackgroundRemover {
 
 class _BackgroundRemovalResult {
   const _BackgroundRemovalResult({
+    required this.success,
     required this.pngBytes,
     required this.transparentAreaRatio,
     this.qualityWarningMessage,
-    required this.transparentWidth,
-    required this.transparentHeight,
+    required this.outputWidth,
+    required this.outputHeight,
     this.wasTrimmed = false,
+    this.maskPngBytes,
+    this.errorMessage,
+    this.debugData,
     this.debugImages = const {},
   });
 
+  final bool success;
   final List<int> pngBytes;
   final double transparentAreaRatio;
   final String? qualityWarningMessage;
-  final int transparentWidth;
-  final int transparentHeight;
+  final int outputWidth;
+  final int outputHeight;
   final bool wasTrimmed;
+  final List<int>? maskPngBytes;
+  final String? errorMessage;
+  final Map<String, Object?>? debugData;
   final Map<BackgroundRemovalDebugArtifact, List<int>> debugImages;
 }
 
@@ -547,11 +932,15 @@ class _ForegroundScoreMap {
   const _ForegroundScoreMap({
     required this.scores,
     required this.paperDistances,
+    required this.saturations,
+    required this.luminances,
     required this.otsuThreshold,
   });
 
   final Uint8List scores;
   final Uint8List paperDistances;
+  final Uint8List saturations;
+  final Uint8List luminances;
   final int otsuThreshold;
 }
 
@@ -650,53 +1039,48 @@ img.Image _buildMaskImage(
   return output;
 }
 
-img.Image _buildPreviewImage(img.Image source, List<bool> mask) {
-  final preview = img.Image(
+img.Image _buildPaperProfilePreview(img.Image source, _PaperProfile paper) {
+  final output = img.Image(
     width: source.width,
     height: source.height,
     numChannels: 4,
   );
-  for (var y = 0; y < source.height; y++) {
-    for (var x = 0; x < source.width; x++) {
-      final index = y * source.width + x;
-      final isForeground = mask[index];
-      final pixel = source.getPixel(x, y);
-      if (isForeground) {
-        preview.setPixelRgba(
-          x,
-          y,
-          pixel.r.round(),
-          pixel.g.round(),
-          pixel.b.round(),
-          255,
-        );
-      } else {
-        preview.setPixelRgba(x, y, 240, 244, 246, 255);
-      }
+  for (var y = 0; y < output.height; y++) {
+    for (var x = 0; x < output.width; x++) {
+      output.setPixelRgba(x, y, paper.r, paper.g, paper.b, 255);
     }
   }
-  return preview;
+  return output;
 }
 
 Map<BackgroundRemovalDebugArtifact, List<int>> _buildDebugArtifacts({
   required img.Image source,
-  required List<bool> strokeMask,
-  required List<bool> floodfillMask,
-  required List<bool> finalMask,
+  required _PaperProfile paper,
+  required List<bool> lineMask,
+  required List<bool> colorMask,
+  required List<bool> edgeMask,
+  required List<bool> mergedMask,
+  required img.Image finalAlphaImage,
 }) {
   return {
     BackgroundRemovalDebugArtifact.original: img.encodePng(source),
-    BackgroundRemovalDebugArtifact.stroke: img.encodePng(
-      _buildMaskImage(source.width, source.height, strokeMask),
+    BackgroundRemovalDebugArtifact.paperProfile: img.encodePng(
+      _buildPaperProfilePreview(source, paper),
     ),
-    BackgroundRemovalDebugArtifact.floodfill: img.encodePng(
-      _buildMaskImage(source.width, source.height, floodfillMask),
+    BackgroundRemovalDebugArtifact.lineMask: img.encodePng(
+      _buildMaskImage(source.width, source.height, lineMask),
     ),
-    BackgroundRemovalDebugArtifact.mask: img.encodePng(
-      _buildMaskImage(source.width, source.height, finalMask),
+    BackgroundRemovalDebugArtifact.colorMask: img.encodePng(
+      _buildMaskImage(source.width, source.height, colorMask),
     ),
-    BackgroundRemovalDebugArtifact.preview: img.encodePng(
-      _buildPreviewImage(source, finalMask),
+    BackgroundRemovalDebugArtifact.edgePreservationMask: img.encodePng(
+      _buildMaskImage(source.width, source.height, edgeMask),
+    ),
+    BackgroundRemovalDebugArtifact.mergedMask: img.encodePng(
+      _buildMaskImage(source.width, source.height, mergedMask),
+    ),
+    BackgroundRemovalDebugArtifact.finalAlphaResult: img.encodePng(
+      finalAlphaImage,
     ),
   };
 }
@@ -710,15 +1094,26 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
 }) {
   final source = img.decodeImage(sourceBytes);
   if (source == null) {
-    throw StateError('이미지 디코드에 실패했습니다.');
+    return const _BackgroundRemovalResult(
+      success: false,
+      pngBytes: <int>[],
+      transparentAreaRatio: 0,
+      outputWidth: 0,
+      outputHeight: 0,
+      errorMessage: '이미지 디코드에 실패했습니다.',
+    );
   }
 
-  final resized = BackgroundRemover._resizeForProcessing(source, maxDimension);
-  final paper = BackgroundRemover._samplePaperProfile(resized);
-  final scoreMap = BackgroundRemover._buildForegroundScoreMap(
+  final resized = RuleBasedBackgroundRemover._resizeForProcessing(
+    source,
+    maxDimension,
+  );
+  final paper = RuleBasedBackgroundRemover._samplePaperProfile(resized);
+  final scoreMap = RuleBasedBackgroundRemover._buildForegroundScoreMap(
     resized,
     paper: paper,
   );
+
   final weakThreshold = max(
     12,
     (scoreMap.otsuThreshold + config.weakThresholdOffset).clamp(0, 255),
@@ -728,46 +1123,113 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     (scoreMap.otsuThreshold + config.strongThresholdOffset).clamp(0, 255),
   );
 
-  final strongMask = BackgroundRemover._buildThresholdMask(
+  final strongMask = RuleBasedBackgroundRemover._buildThresholdMask(
     scoreMap.scores,
     strongThreshold,
   );
-  final weakMask = BackgroundRemover._buildThresholdMask(
+  final weakMask = RuleBasedBackgroundRemover._buildThresholdMask(
     scoreMap.scores,
     weakThreshold,
   );
-  final dilatedStrokeMask = BackgroundRemover._dilateMask(
+  final lineSeedMask = RuleBasedBackgroundRemover._refineLineSeedMask(
     strongMask,
-    resized.width,
-    resized.height,
-    radius: config.strokeDilateRadius,
+    scoreMap: scoreMap,
+    paper: paper,
+    strongThreshold: strongThreshold,
   );
-  final strokeMask = BackgroundRemover._closeMask(
-    dilatedStrokeMask,
+  final lineMask = RuleBasedBackgroundRemover._closeMask(
+    RuleBasedBackgroundRemover._dilateMask(
+      lineSeedMask,
+      resized.width,
+      resized.height,
+      radius: config.strokeDilateRadius,
+    ),
     resized.width,
     resized.height,
     radius: config.strokeCloseRadius,
   );
-  final floodfillMask = BackgroundRemover._floodFillBackground(
+  final colorMask = RuleBasedBackgroundRemover._buildColorMask(
+    scoreMap,
+    paper: paper,
+    weakThreshold: weakThreshold,
+  );
+  final edgeMask = RuleBasedBackgroundRemover._dilateMask(
+    lineMask,
+    resized.width,
+    resized.height,
+    radius: 1,
+  );
+  final mergedSeedMask = RuleBasedBackgroundRemover._unionMasks([
+    lineMask,
+    colorMask,
+    edgeMask,
+  ]);
+  final floodfillMask = RuleBasedBackgroundRemover._floodFillBackground(
     resized,
-    strokeBarrierMask: strokeMask,
+    barrierMask: mergedSeedMask,
     scores: scoreMap.scores,
     paperDistances: scoreMap.paperDistances,
+    saturations: scoreMap.saturations,
+    luminances: scoreMap.luminances,
     weakThreshold: weakThreshold,
     strongThreshold: strongThreshold,
     paper: paper,
   );
-  final foregroundSeedMask = List<bool>.generate(
-    weakMask.length,
-    (index) => weakMask[index] && !floodfillMask[index],
-    growable: false,
-  );
-  final foregroundMask = BackgroundRemover._removeSmallComponents(
+  final foregroundSeedMask = List<bool>.generate(weakMask.length, (index) {
+    final paperDistance = scoreMap.paperDistances[index];
+    final score = scoreMap.scores[index];
+    final saturation = scoreMap.saturations[index];
+    final isStrongForegroundCandidate =
+        saturation >= 10 ||
+        paperDistance >= paper.distanceTolerance + 12 ||
+        (score >= strongThreshold + 10 &&
+            paperDistance >= paper.distanceTolerance + 4);
+    final weakCandidate =
+        weakMask[index] &&
+        (paperDistance >= paper.distanceTolerance + 8 ||
+            isStrongForegroundCandidate);
+    return (weakCandidate || mergedSeedMask[index]) && !floodfillMask[index];
+  }, growable: false);
+  final cleanedForegroundMask =
+      RuleBasedBackgroundRemover._removeSmallComponents(
+        resized.width,
+        resized.height,
+        foregroundSeedMask,
+        config: config,
+      );
+  final finalMask = RuleBasedBackgroundRemover._removeSmallComponents(
     resized.width,
     resized.height,
-    foregroundSeedMask,
+    RuleBasedBackgroundRemover._unionMasks([
+      cleanedForegroundMask,
+      lineMask,
+      colorMask,
+      edgeMask,
+    ]),
     config: config,
   );
+  final edgeSuppressedMask =
+      RuleBasedBackgroundRemover._suppressEdgeConnectedBackgroundLikeComponents(
+        resized.width,
+        resized.height,
+        finalMask,
+        paperDistances: scoreMap.paperDistances,
+        saturations: scoreMap.saturations,
+        scores: scoreMap.scores,
+        paper: paper,
+        strongThreshold: strongThreshold,
+      );
+  final borderStrippedMask =
+      RuleBasedBackgroundRemover._stripBorderPaperLikePixels(
+        resized.width,
+        resized.height,
+        edgeSuppressedMask,
+        paperDistances: scoreMap.paperDistances,
+        saturations: scoreMap.saturations,
+        scores: scoreMap.scores,
+        paper: paper,
+        strongThreshold: strongThreshold,
+      );
 
   final outputImage = img.Image(
     width: resized.width,
@@ -779,7 +1241,7 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     for (var x = 0; x < resized.width; x++) {
       final index = y * resized.width + x;
       final pixel = resized.getPixel(x, y);
-      final alpha = foregroundMask[index] ? 255 : 0;
+      final alpha = borderStrippedMask[index] ? 255 : 0;
       if (alpha == 0) {
         transparentPixels++;
       }
@@ -798,68 +1260,96 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
   final transparentAreaRatio = totalPixels == 0
       ? 0.0
       : transparentPixels / totalPixels;
-  final qualityWarningMessage = BackgroundRemover._qualityWarningMessage(
-    transparentAreaRatio,
+  final qualityWarningMessage =
+      RuleBasedBackgroundRemover._qualityWarningMessage(transparentAreaRatio);
+  final maskImage = _buildMaskImage(
+    resized.width,
+    resized.height,
+    borderStrippedMask,
   );
+  final maskPngBytes = img.encodePng(maskImage);
 
   final selectedArtifacts = debugArtifacts.toSet();
   final builtArtifacts = selectedArtifacts.isEmpty
       ? const <BackgroundRemovalDebugArtifact, List<int>>{}
       : _buildDebugArtifacts(
           source: resized,
-          strokeMask: strokeMask,
-          floodfillMask: floodfillMask,
-          finalMask: foregroundMask,
+          paper: paper,
+          lineMask: lineMask,
+          colorMask: colorMask,
+          edgeMask: edgeMask,
+          mergedMask: borderStrippedMask,
+          finalAlphaImage: outputImage,
         );
   final debugImages = {
     for (final artifact in selectedArtifacts)
       if (builtArtifacts.containsKey(artifact))
         artifact: builtArtifacts[artifact]!,
   };
+  final debugData = <String, Object?>{
+    'otsuThreshold': scoreMap.otsuThreshold,
+    'weakThreshold': weakThreshold,
+    'strongThreshold': strongThreshold,
+  };
 
   if (!trimToForeground) {
     return _BackgroundRemovalResult(
+      success: true,
       pngBytes: img.encodePng(outputImage),
       transparentAreaRatio: transparentAreaRatio,
       qualityWarningMessage: qualityWarningMessage,
-      transparentWidth: outputImage.width,
-      transparentHeight: outputImage.height,
+      outputWidth: outputImage.width,
+      outputHeight: outputImage.height,
       wasTrimmed: false,
+      maskPngBytes: maskPngBytes,
+      debugData: debugData,
       debugImages: debugImages,
     );
   }
 
   final bounds = _findForegroundBounds(
-    foregroundMask,
+    borderStrippedMask,
     resized.width,
     resized.height,
   );
-  if (bounds.hasForeground) {
-    final trimmed = img.copyCrop(
-      outputImage,
-      x: bounds.minX,
-      y: bounds.minY,
-      width: bounds.maxX - bounds.minX + 1,
-      height: bounds.maxY - bounds.minY + 1,
-    );
+  if (!bounds.hasForeground) {
     return _BackgroundRemovalResult(
-      pngBytes: img.encodePng(trimmed),
+      success: true,
+      pngBytes: img.encodePng(outputImage),
       transparentAreaRatio: transparentAreaRatio,
       qualityWarningMessage: qualityWarningMessage,
-      transparentWidth: trimmed.width,
-      transparentHeight: trimmed.height,
-      wasTrimmed: true,
+      outputWidth: outputImage.width,
+      outputHeight: outputImage.height,
+      wasTrimmed: false,
+      maskPngBytes: maskPngBytes,
+      debugData: debugData,
       debugImages: debugImages,
     );
   }
 
+  final trimmed = img.copyCrop(
+    outputImage,
+    x: bounds.minX,
+    y: bounds.minY,
+    width: bounds.maxX - bounds.minX + 1,
+    height: bounds.maxY - bounds.minY + 1,
+  );
   return _BackgroundRemovalResult(
-    pngBytes: img.encodePng(outputImage),
+    success: true,
+    pngBytes: img.encodePng(trimmed),
     transparentAreaRatio: transparentAreaRatio,
     qualityWarningMessage: qualityWarningMessage,
-    transparentWidth: outputImage.width,
-    transparentHeight: outputImage.height,
-    wasTrimmed: false,
+    outputWidth: trimmed.width,
+    outputHeight: trimmed.height,
+    wasTrimmed: true,
+    maskPngBytes: maskPngBytes,
+    debugData: debugData,
     debugImages: debugImages,
   );
 }
+
+final backgroundRemoverProvider = Provider<BackgroundRemover>((_) {
+  return const RuleBasedBackgroundRemover(
+    config: defaultBackgroundRemovalConfig,
+  );
+});

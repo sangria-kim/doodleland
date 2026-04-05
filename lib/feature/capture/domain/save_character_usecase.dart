@@ -17,7 +17,8 @@ class SaveCharacterUseCase {
     BackgroundRemover? backgroundRemover,
   }) : _characterRepository = characterRepository,
        _characterStoragePathFactory = characterStoragePathFactory,
-       _backgroundRemover = backgroundRemover ?? const BackgroundRemover();
+       _backgroundRemover =
+           backgroundRemover ?? const RuleBasedBackgroundRemover();
 
   final CharacterRepository _characterRepository;
   final CharacterStoragePathFactory _characterStoragePathFactory;
@@ -40,15 +41,20 @@ class SaveCharacterUseCase {
     final thumbnailPath = await storagePaths.thumbnailImagePath();
 
     await source.copy(originalImagePath);
-    final removalResult = await _backgroundRemover.removeBackground(
-      sourceImagePath: sourceImagePath,
-      destinationImagePath: transparentImagePath,
+    final removalResult = await _backgroundRemover.remove(
+      bytes,
       trimToForeground: false,
       debugSession: await _buildDebugSession(
         storagePaths: storagePaths,
         transparentImagePath: transparentImagePath,
       ),
     );
+    if (!removalResult.success) {
+      throw StateError('그림을 인식하지 못했어요');
+    }
+    await File(
+      transparentImagePath,
+    ).writeAsBytes(removalResult.outputImageBytes);
     final transparentBytes = await File(transparentImagePath).readAsBytes();
     await _saveThumbnailImage(
       sourceImageBytes: transparentBytes,
@@ -60,8 +66,8 @@ class SaveCharacterUseCase {
       originalImagePath: originalImagePath,
       transparentImagePath: transparentImagePath,
       thumbnailPath: thumbnailPath,
-      width: removalResult.transparentWidth,
-      height: removalResult.transparentHeight,
+      width: removalResult.outputWidth,
+      height: removalResult.outputHeight,
     );
 
     return SaveCharacterResult(
@@ -125,8 +131,6 @@ final saveCharacterUseCaseProvider = Provider<SaveCharacterUseCase>((ref) {
   return SaveCharacterUseCase(
     characterRepository: ref.watch(characterRepositoryProvider),
     characterStoragePathFactory: const CharacterStoragePathFactory(),
-    backgroundRemover: const BackgroundRemover(
-      config: defaultBackgroundRemovalConfig,
-    ),
+    backgroundRemover: ref.watch(backgroundRemoverProvider),
   );
 });

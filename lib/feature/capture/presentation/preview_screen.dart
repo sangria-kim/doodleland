@@ -28,7 +28,12 @@ class PreviewScreen extends ConsumerWidget {
       if (!context.mounted) return;
       if (savedResult == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.feedbackMessage ?? '저장 실패')),
+          SnackBar(
+            content: Text(
+              state.feedbackMessage ??
+                  CaptureViewModel.recognitionFailureMessage,
+            ),
+          ),
         );
         return;
       }
