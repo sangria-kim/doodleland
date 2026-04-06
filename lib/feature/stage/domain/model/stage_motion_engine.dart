@@ -60,7 +60,6 @@ class StageMotionEngine {
         stageSize: stageSize,
         objectSize: objectSize,
       ),
-      direction: StageMotionDirection.leftToRight,
       isPaused: false,
     );
   }

@@ -173,7 +173,7 @@ class StageMotionRuntimeState {
 - `stageMotion` 기본값은 `enabled=true`, `pathType=horizontalPingPong`입니다.
 - `stageRuntime.direction` 기본값은 `leftToRight`입니다.
 - `stageRuntime.speed`는 캐릭터 생성 시 `0.1~0.4` 범위 랜덤 1회 부여 후 유지합니다.
-- 드래그 종료 시 방향은 `leftToRight`로 재설정되며, 속도는 유지됩니다.
+- 드래그 종료 시 방향은 드래그 시작 전 진행 방향을 유지하며, 속도는 유지됩니다.
 - `isFlippedHorizontally` 필드는 확장 대비로 유지하지만, v1 렌더링에서는 좌우 반전을 사용하지 않습니다.
 
 ### TouchPreset

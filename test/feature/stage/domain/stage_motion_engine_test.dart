@@ -97,7 +97,7 @@ void main() {
   });
 
   test(
-    'resumes from dropped position, keeps speed and flip, and resets direction',
+    'resumes from dropped position, keeps direction speed and flip',
     () {
       final runtime = buildRuntime(
         x: 0.8,
@@ -116,7 +116,7 @@ void main() {
       );
 
       expect(resumed.position, equals(const Offset(0.45, 0.4)));
-      expect(resumed.direction, equals(StageMotionDirection.leftToRight));
+      expect(resumed.direction, equals(StageMotionDirection.rightToLeft));
       expect(resumed.isFlippedHorizontally, isTrue);
       expect(resumed.speed, equals(0.37));
       expect(resumed.isPaused, isFalse);

@@ -51,7 +51,7 @@
   - ViewModel에 동기화
 - `onPanEnd/onPanCancel`
   - 드롭 위치 유지
-  - `direction = leftToRight`로 재설정
+  - 드래그 시작 전 진행 방향 유지
   - `speed`는 유지
   - stage motion resume
 
