@@ -22,7 +22,7 @@
 - 없음
 
 **다음 예정 작업**
-- 실제 기기 샘플(회색/유색 용지) 기준 배경 제거 threshold 튜닝
+- 실제 기기 샘플(회색/유색 용지) 기준 outline-guided threshold 미세 튜닝
 - 저장 전 화면과 실제 투명 결과 표시 흐름 정합화
 - 둥실 둥실/기차 이동 등 추가 stage motion 확장
 ---
@@ -30,6 +30,11 @@
 ## 📝 커밋 로그
 
 ### 2026-04-06
+
+#### fix: improve outline-guided background removal for colored drawings
+- 진한 외곽선이 있는 그림에서 내부 색 영역은 유지하고 외부 배경은 강하게 제거하도록 outline-guided 마스크 경로를 추가했습니다.
+- 초기 aggressive 제거 기반에 제한 복원과 선 보호를 결합해 배경 잔여를 줄이면서 색 손실을 완화했습니다.
+- 관련 배경 제거 테스트를 보강하고 버전을 `1.8.1+10801`로 상향했습니다.
 
 #### feat: add phase1 drawing detection and background removal upgrades
 - Capture 단계 자동 인식 모듈을 추가하고 DetectionResult 정규화 좌표를 Crop 초기 박스에 연동했습니다.

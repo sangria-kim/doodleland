@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -528,6 +529,167 @@ class RuleBasedBackgroundRemover implements BackgroundRemover {
     return _erodeMask(expanded, width, height, radius: radius);
   }
 
+  static List<bool> _buildLineProtectionMask(
+    int width,
+    int height, {
+    required List<bool> lineSeedMask,
+    required Uint8List paperDistances,
+    required Uint8List saturations,
+    required Uint8List scores,
+    required _PaperProfile paper,
+    required int strongThreshold,
+  }) {
+    final lineBand = _dilateMask(lineSeedMask, width, height, radius: 1);
+    return List<bool>.generate(lineBand.length, (index) {
+      if (!lineBand[index]) {
+        return false;
+      }
+
+      final saturation = saturations[index];
+      final paperDistance = paperDistances[index];
+      final score = scores[index];
+      final isLikelyInk =
+          score >= strongThreshold - 2 ||
+          saturation >= 8 ||
+          paperDistance >= paper.distanceTolerance + 10;
+      return isLikelyInk;
+    }, growable: false);
+  }
+
+  static List<bool> _floodFillOutsideByBarrier(
+    int width,
+    int height, {
+    required List<bool> barrierMask,
+  }) {
+    final total = width * height;
+    final outside = List<bool>.filled(total, false);
+    final queue = ListQueue<int>();
+
+    void enqueue(int index) {
+      if (outside[index] || barrierMask[index]) {
+        return;
+      }
+      outside[index] = true;
+      queue.add(index);
+    }
+
+    for (var x = 0; x < width; x++) {
+      enqueue(x);
+      enqueue((height - 1) * width + x);
+    }
+    for (var y = 0; y < height; y++) {
+      enqueue(y * width);
+      enqueue(y * width + (width - 1));
+    }
+
+    while (queue.isNotEmpty) {
+      final index = queue.removeFirst();
+      final x = index % width;
+      final y = index ~/ width;
+
+      if (x > 0) {
+        enqueue(index - 1);
+      }
+      if (x < width - 1) {
+        enqueue(index + 1);
+      }
+      if (y > 0) {
+        enqueue(index - width);
+      }
+      if (y < height - 1) {
+        enqueue(index + width);
+      }
+    }
+
+    return outside;
+  }
+
+  static _OutlineGuidedMaskResult _buildOutlineGuidedInteriorMask(
+    int width,
+    int height, {
+    required _ForegroundScoreMap scoreMap,
+    required _PaperProfile paper,
+    required int strongThreshold,
+    required BackgroundRemovalConfig config,
+  }) {
+    final total = width * height;
+    final outlineSeedMask = List<bool>.generate(total, (index) {
+      final score = scoreMap.scores[index];
+      final saturation = scoreMap.saturations[index];
+      final luminance = scoreMap.luminances[index];
+      final darknessDelta = paper.luminance - luminance;
+      final strongInk = score >= strongThreshold;
+      final darkOutlineInk =
+          darknessDelta >= config.outlineInkMinDarknessDelta &&
+          saturation <= config.outlineInkMaxSaturation &&
+          score >= strongThreshold - 10;
+      return strongInk || darkOutlineInk;
+    }, growable: false);
+
+    final outlineBarrierMask = _closeMask(
+      _dilateMask(outlineSeedMask, width, height, radius: 1),
+      width,
+      height,
+      radius: config.outlineBarrierCloseRadius,
+    );
+    final outsideMask = _floodFillOutsideByBarrier(
+      width,
+      height,
+      barrierMask: outlineBarrierMask,
+    );
+    final interiorMask = List<bool>.generate(
+      total,
+      (index) => !outsideMask[index],
+      growable: false,
+    );
+
+    var outlinePixels = 0;
+    var interiorPixels = 0;
+    for (var index = 0; index < total; index++) {
+      if (outlineBarrierMask[index]) {
+        outlinePixels++;
+      }
+      if (interiorMask[index]) {
+        interiorPixels++;
+      }
+    }
+
+    final outlineCoverage = total == 0 ? 0.0 : outlinePixels / total;
+    final interiorRatio = total == 0 ? 0.0 : interiorPixels / total;
+    final shouldApply =
+        outlineCoverage >= config.outlineModeMinCoverage &&
+        interiorRatio >= config.outlineModeMinInteriorRatio &&
+        interiorRatio <= config.outlineModeMaxInteriorRatio;
+    if (!shouldApply) {
+      return _OutlineGuidedMaskResult(
+        mask: List<bool>.filled(total, false),
+        applied: false,
+        outlineCoverage: outlineCoverage,
+        interiorRatio: interiorRatio,
+      );
+    }
+
+    final guidedInteriorMask = List<bool>.generate(total, (index) {
+      if (!interiorMask[index]) {
+        return false;
+      }
+      final paperDistance = scoreMap.paperDistances[index];
+      final saturation = scoreMap.saturations[index];
+      final score = scoreMap.scores[index];
+      return outlineBarrierMask[index] ||
+          paperDistance >= paper.distanceTolerance + 2 ||
+          saturation >= 6 ||
+          score >= strongThreshold - 10;
+    }, growable: false);
+
+    return _OutlineGuidedMaskResult(
+      mask: guidedInteriorMask,
+      applied: true,
+      outlineCoverage: outlineCoverage,
+      interiorRatio: interiorRatio,
+    );
+  }
+
   static List<bool> _floodFillBackground(
     img.Image image, {
     required List<bool> barrierMask,
@@ -544,17 +706,17 @@ class RuleBasedBackgroundRemover implements BackgroundRemover {
     final total = width * height;
     final visited = List<bool>.filled(total, false);
     final queue = ListQueue<int>();
-    final backgroundScoreThreshold = min(255, strongThreshold + 8);
+    final backgroundScoreThreshold = min(255, strongThreshold + 16);
     final paperDistanceThreshold = min(
       255,
-      max(paper.distanceTolerance + 12, weakThreshold + 4),
+      max(paper.distanceTolerance + 20, weakThreshold + 10),
     );
     final loosePaperDistanceThreshold = min(
       255,
-      max(paper.distanceTolerance + 26, weakThreshold + 18),
+      max(paper.distanceTolerance + 34, weakThreshold + 24),
     );
-    const lowSaturationThreshold = 26;
-    const luminanceDeltaThreshold = 54;
+    const lowSaturationThreshold = 34;
+    const luminanceDeltaThreshold = 68;
 
     bool canVisit(int index) {
       if (barrierMask[index]) {
@@ -734,9 +896,9 @@ class RuleBasedBackgroundRemover implements BackgroundRemover {
     final output = List<bool>.from(mask, growable: false);
     final visited = List<bool>.filled(total, false);
     final queue = ListQueue<int>();
-    final maxPaperDistance = paper.distanceTolerance + 40;
-    final maxScore = strongThreshold + 22;
-    const maxSaturation = 30;
+    final maxPaperDistance = paper.distanceTolerance + 52;
+    final maxScore = strongThreshold + 30;
+    const maxSaturation = 38;
 
     bool isBorderPaperLike(int index) {
       if (!output[index]) {
@@ -857,6 +1019,228 @@ class RuleBasedBackgroundRemover implements BackgroundRemover {
     return cleaned;
   }
 
+  static _RecoveryResult _recoverForegroundComponents(
+    int width,
+    int height, {
+    required List<bool> baseMask,
+    required List<bool> floodfillMask,
+    required List<bool> lineSeedMask,
+    required List<bool> strongMask,
+    required _ForegroundScoreMap scoreMap,
+    required _PaperProfile paper,
+    required int weakThreshold,
+    required int strongThreshold,
+    required BackgroundRemovalConfig config,
+  }) {
+    final total = width * height;
+    final recoveryBudgetPixels = max(
+      0,
+      (total * config.maxRecoveryRatio).round(),
+    );
+    if (recoveryBudgetPixels == 0) {
+      return _RecoveryResult(
+        mask: List<bool>.filled(total, false),
+        recoveredPixels: 0,
+      );
+    }
+
+    final anchorCoreMask = _unionMasks([baseMask, lineSeedMask, strongMask]);
+    final candidateMask = List<bool>.filled(total, false);
+    final visited = List<bool>.filled(total, false);
+    final queue = ListQueue<int>();
+    final components = <_RecoveryComponent>[];
+    final minComponentPixels = max(1, config.recoveryMinComponentPixels);
+    final maxComponentPixels = max(
+      minComponentPixels + 1,
+      (total * config.recoveryMaxComponentRatio).round(),
+    );
+
+    bool hasAnchorNeighbor(int index) {
+      final x = index % width;
+      final y = index ~/ width;
+      for (var dy = -1; dy <= 1; dy++) {
+        final ny = y + dy;
+        if (ny < 0 || ny >= height) {
+          continue;
+        }
+        for (var dx = -1; dx <= 1; dx++) {
+          final nx = x + dx;
+          if (nx < 0 || nx >= width || (dx == 0 && dy == 0)) {
+            continue;
+          }
+          if (anchorCoreMask[ny * width + nx]) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    for (var index = 0; index < total; index++) {
+      if (baseMask[index] ||
+          floodfillMask[index] ||
+          !hasAnchorNeighbor(index)) {
+        continue;
+      }
+      final paperDistance = scoreMap.paperDistances[index];
+      final saturation = scoreMap.saturations[index];
+      final score = scoreMap.scores[index];
+      final isCandidate =
+          paperDistance >= paper.distanceTolerance + 6 ||
+          (saturation >= 10 && score >= weakThreshold + 6) ||
+          score >= strongThreshold;
+      candidateMask[index] = isCandidate;
+    }
+
+    for (var start = 0; start < total; start++) {
+      if (!candidateMask[start] || visited[start]) {
+        continue;
+      }
+
+      final component = <int>[];
+      var touchesEdge = false;
+      var supportPixels = 0;
+      var scoreSum = 0.0;
+      var distanceSum = 0.0;
+      var saturationSum = 0.0;
+      var luminanceSum = 0.0;
+      var luminanceSquareSum = 0.0;
+
+      visited[start] = true;
+      queue.add(start);
+
+      while (queue.isNotEmpty) {
+        final index = queue.removeFirst();
+        component.add(index);
+        final x = index % width;
+        final y = index ~/ width;
+
+        if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
+          touchesEdge = true;
+        }
+
+        if (hasAnchorNeighbor(index)) {
+          supportPixels++;
+        }
+
+        final score = scoreMap.scores[index].toDouble();
+        final distance = scoreMap.paperDistances[index].toDouble();
+        final saturation = scoreMap.saturations[index].toDouble();
+        final luminance = scoreMap.luminances[index].toDouble();
+        scoreSum += score;
+        distanceSum += distance;
+        saturationSum += saturation;
+        luminanceSum += luminance;
+        luminanceSquareSum += luminance * luminance;
+
+        if (x > 0) {
+          final left = index - 1;
+          if (candidateMask[left] && !visited[left]) {
+            visited[left] = true;
+            queue.add(left);
+          }
+        }
+        if (x < width - 1) {
+          final right = index + 1;
+          if (candidateMask[right] && !visited[right]) {
+            visited[right] = true;
+            queue.add(right);
+          }
+        }
+        if (y > 0) {
+          final top = index - width;
+          if (candidateMask[top] && !visited[top]) {
+            visited[top] = true;
+            queue.add(top);
+          }
+        }
+        if (y < height - 1) {
+          final bottom = index + width;
+          if (candidateMask[bottom] && !visited[bottom]) {
+            visited[bottom] = true;
+            queue.add(bottom);
+          }
+        }
+      }
+
+      final count = component.length;
+      if (touchesEdge ||
+          count < minComponentPixels ||
+          count > maxComponentPixels) {
+        continue;
+      }
+
+      final supportRatio = supportPixels / count;
+      if (supportRatio < config.recoveryMinSupportRatio) {
+        continue;
+      }
+
+      final avgScore = scoreSum / count;
+      final avgDistance = distanceSum / count;
+      final avgSaturation = saturationSum / count;
+      final avgLuminance = luminanceSum / count;
+      final luminanceVariance = max(
+        0.0,
+        (luminanceSquareSum / count) - avgLuminance * avgLuminance,
+      );
+      final survivesThreshold =
+          avgDistance >= paper.distanceTolerance + 8 ||
+          avgScore >= strongThreshold + 2 ||
+          avgSaturation >= 14;
+      final preservesTexture =
+          luminanceVariance >= config.recoveryMinLuminanceVariance ||
+          avgSaturation >= 12;
+      if (!survivesThreshold || !preservesTexture) {
+        continue;
+      }
+
+      final componentScore =
+          supportRatio * 120 +
+          (avgDistance - (paper.distanceTolerance + 6)).clamp(0, 60) * 0.8 +
+          (avgScore - weakThreshold).clamp(0, 120) * 0.35 +
+          min(40, luminanceVariance) * 0.4 +
+          min(30, avgSaturation) * 0.3;
+      components.add(
+        _RecoveryComponent(pixels: component, score: componentScore),
+      );
+    }
+
+    if (components.isEmpty) {
+      return _RecoveryResult(
+        mask: List<bool>.filled(total, false),
+        recoveredPixels: 0,
+        budgetPixels: recoveryBudgetPixels,
+      );
+    }
+
+    components.sort((a, b) => b.score.compareTo(a.score));
+    final recoveredMask = List<bool>.filled(total, false);
+    var recoveredPixels = 0;
+    var recoveredComponents = 0;
+    for (final component in components) {
+      final componentPixels = component.pixels.length;
+      if (recoveredPixels + componentPixels > recoveryBudgetPixels &&
+          recoveredPixels > 0) {
+        continue;
+      }
+      for (final index in component.pixels) {
+        recoveredMask[index] = true;
+      }
+      recoveredPixels += componentPixels;
+      recoveredComponents++;
+      if (recoveredPixels >= recoveryBudgetPixels) {
+        break;
+      }
+    }
+
+    return _RecoveryResult(
+      mask: recoveredMask,
+      recoveredPixels: recoveredPixels,
+      recoveredComponents: recoveredComponents,
+      budgetPixels: recoveryBudgetPixels,
+    );
+  }
+
   static String? _qualityWarningMessage(double transparentAreaRatio) {
     if (transparentAreaRatio < 0.05) {
       return '배경 제거 후 투명영역이 5% 미만입니다. 배경과 피사체 색상 대비를 확인해 주세요.';
@@ -942,6 +1326,41 @@ class _ForegroundScoreMap {
   final Uint8List saturations;
   final Uint8List luminances;
   final int otsuThreshold;
+}
+
+class _RecoveryResult {
+  const _RecoveryResult({
+    required this.mask,
+    required this.recoveredPixels,
+    this.recoveredComponents = 0,
+    this.budgetPixels = 0,
+  });
+
+  final List<bool> mask;
+  final int recoveredPixels;
+  final int recoveredComponents;
+  final int budgetPixels;
+}
+
+class _OutlineGuidedMaskResult {
+  const _OutlineGuidedMaskResult({
+    required this.mask,
+    required this.applied,
+    required this.outlineCoverage,
+    required this.interiorRatio,
+  });
+
+  final List<bool> mask;
+  final bool applied;
+  final double outlineCoverage;
+  final double interiorRatio;
+}
+
+class _RecoveryComponent {
+  const _RecoveryComponent({required this.pixels, required this.score});
+
+  final List<int> pixels;
+  final double score;
 }
 
 ({int minX, int minY, int maxX, int maxY, bool hasForeground})
@@ -1148,25 +1567,18 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     resized.height,
     radius: config.strokeCloseRadius,
   );
-  final colorMask = RuleBasedBackgroundRemover._buildColorMask(
-    scoreMap,
-    paper: paper,
-    weakThreshold: weakThreshold,
-  );
-  final edgeMask = RuleBasedBackgroundRemover._dilateMask(
-    lineMask,
-    resized.width,
-    resized.height,
-    radius: 1,
-  );
-  final mergedSeedMask = RuleBasedBackgroundRemover._unionMasks([
-    lineMask,
-    colorMask,
-    edgeMask,
-  ]);
+  final outlineGuidedMaskResult =
+      RuleBasedBackgroundRemover._buildOutlineGuidedInteriorMask(
+        resized.width,
+        resized.height,
+        scoreMap: scoreMap,
+        paper: paper,
+        strongThreshold: strongThreshold,
+        config: config,
+      );
   final floodfillMask = RuleBasedBackgroundRemover._floodFillBackground(
     resized,
-    barrierMask: mergedSeedMask,
+    barrierMask: lineMask,
     scores: scoreMap.scores,
     paperDistances: scoreMap.paperDistances,
     saturations: scoreMap.saturations,
@@ -1175,55 +1587,59 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     strongThreshold: strongThreshold,
     paper: paper,
   );
-  final foregroundSeedMask = List<bool>.generate(weakMask.length, (index) {
-    final paperDistance = scoreMap.paperDistances[index];
-    final score = scoreMap.scores[index];
-    final saturation = scoreMap.saturations[index];
-    final isStrongForegroundCandidate =
-        saturation >= 10 ||
-        paperDistance >= paper.distanceTolerance + 12 ||
-        (score >= strongThreshold + 10 &&
-            paperDistance >= paper.distanceTolerance + 4);
-    final weakCandidate =
-        weakMask[index] &&
-        (paperDistance >= paper.distanceTolerance + 8 ||
-            isStrongForegroundCandidate);
-    return (weakCandidate || mergedSeedMask[index]) && !floodfillMask[index];
-  }, growable: false);
-  final cleanedForegroundMask =
-      RuleBasedBackgroundRemover._removeSmallComponents(
-        resized.width,
-        resized.height,
-        foregroundSeedMask,
-        config: config,
-      );
-  final finalMask = RuleBasedBackgroundRemover._removeSmallComponents(
+  final aggressiveForegroundSeedMask = List<bool>.generate(
+    weakMask.length,
+    (index) => weakMask[index] && !floodfillMask[index],
+    growable: false,
+  );
+  final aggressiveBaseMask = RuleBasedBackgroundRemover._removeSmallComponents(
     resized.width,
     resized.height,
-    RuleBasedBackgroundRemover._unionMasks([
-      cleanedForegroundMask,
-      lineMask,
-      colorMask,
-      edgeMask,
-    ]),
+    aggressiveForegroundSeedMask,
     config: config,
   );
-  final edgeSuppressedMask =
-      RuleBasedBackgroundRemover._suppressEdgeConnectedBackgroundLikeComponents(
+  final lineProtectionMask =
+      RuleBasedBackgroundRemover._buildLineProtectionMask(
         resized.width,
         resized.height,
-        finalMask,
+        lineSeedMask: lineSeedMask,
         paperDistances: scoreMap.paperDistances,
         saturations: scoreMap.saturations,
         scores: scoreMap.scores,
         paper: paper,
         strongThreshold: strongThreshold,
       );
+  final recoveryResult =
+      RuleBasedBackgroundRemover._recoverForegroundComponents(
+        resized.width,
+        resized.height,
+        baseMask: aggressiveBaseMask,
+        floodfillMask: floodfillMask,
+        lineSeedMask: lineSeedMask,
+        strongMask: strongMask,
+        scoreMap: scoreMap,
+        paper: paper,
+        weakThreshold: weakThreshold,
+        strongThreshold: strongThreshold,
+        config: config,
+      );
+  final mergedMask = RuleBasedBackgroundRemover._unionMasks([
+    aggressiveBaseMask,
+    lineProtectionMask,
+    recoveryResult.mask,
+    outlineGuidedMaskResult.mask,
+  ]);
+  final finalMask = RuleBasedBackgroundRemover._removeSmallComponents(
+    resized.width,
+    resized.height,
+    mergedMask,
+    config: config,
+  );
   final borderStrippedMask =
       RuleBasedBackgroundRemover._stripBorderPaperLikePixels(
         resized.width,
         resized.height,
-        edgeSuppressedMask,
+        finalMask,
         paperDistances: scoreMap.paperDistances,
         saturations: scoreMap.saturations,
         scores: scoreMap.scores,
@@ -1276,8 +1692,8 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
           source: resized,
           paper: paper,
           lineMask: lineMask,
-          colorMask: colorMask,
-          edgeMask: edgeMask,
+          colorMask: outlineGuidedMaskResult.mask,
+          edgeMask: lineProtectionMask,
           mergedMask: borderStrippedMask,
           finalAlphaImage: outputImage,
         );
@@ -1290,6 +1706,12 @@ _BackgroundRemovalResult _removeBackgroundInIsolate({
     'otsuThreshold': scoreMap.otsuThreshold,
     'weakThreshold': weakThreshold,
     'strongThreshold': strongThreshold,
+    'recoveryBudgetPixels': recoveryResult.budgetPixels,
+    'recoveryPixels': recoveryResult.recoveredPixels,
+    'recoveryComponents': recoveryResult.recoveredComponents,
+    'outlineGuidedApplied': outlineGuidedMaskResult.applied,
+    'outlineCoverage': outlineGuidedMaskResult.outlineCoverage,
+    'outlineInteriorRatio': outlineGuidedMaskResult.interiorRatio,
   };
 
   if (!trimToForeground) {

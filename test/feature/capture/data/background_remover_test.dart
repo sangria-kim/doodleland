@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:doodleland/feature/capture/data/background_remover.dart';
 import 'package:doodleland/feature/capture/data/background_removal_config.dart';
@@ -214,9 +215,75 @@ void main() {
       final output = img.decodeImage(
         await File(transparentPath).readAsBytes(),
       )!;
-      expect(result.transparentAreaRatio, greaterThan(0.55));
+      expect(result.transparentAreaRatio, greaterThan(0.60));
       expect(output.getPixel(24, 30).a.round(), equals(255));
       expect(output.getPixel(50, 56).a.round(), equals(255));
+    },
+  );
+
+  test(
+    'preserves enclosed interior colors when dark outline is dominant',
+    () async {
+      final sourceImage = img.Image(width: 96, height: 72);
+      for (var y = 0; y < sourceImage.height; y++) {
+        for (var x = 0; x < sourceImage.width; x++) {
+          sourceImage.setPixelRgba(x, y, 246, 245, 240, 255);
+        }
+      }
+
+      for (var y = 4; y < 18; y++) {
+        for (var x = 4; x < 18; x++) {
+          final tint = 220 + ((x + y) % 12);
+          sourceImage.setPixelRgba(x, y, 210, tint, 232, 255);
+        }
+      }
+      for (var y = 50; y < 68; y++) {
+        for (var x = 78; x < 94; x++) {
+          sourceImage.setPixelRgba(x, y, 226, 226, 226, 255);
+        }
+      }
+
+      for (var x = 20; x <= 75; x++) {
+        for (var t = 0; t < 3; t++) {
+          sourceImage.setPixelRgba(x, 18 + t, 22, 24, 30, 255);
+          sourceImage.setPixelRgba(x, 53 - t, 22, 24, 30, 255);
+        }
+      }
+      for (var y = 18; y <= 53; y++) {
+        for (var t = 0; t < 3; t++) {
+          sourceImage.setPixelRgba(20 + t, y, 22, 24, 30, 255);
+          sourceImage.setPixelRgba(75 - t, y, 22, 24, 30, 255);
+        }
+      }
+
+      for (var y = 22; y <= 49; y++) {
+        for (var x = 24; x <= 71; x++) {
+          final variation = ((x * 3 + y * 5) % 16) - 8;
+          sourceImage.setPixelRgba(
+            x,
+            y,
+            (232 + variation).clamp(0, 255),
+            (216 + variation).clamp(0, 255),
+            (238 + variation).clamp(0, 255),
+            255,
+          );
+        }
+      }
+
+      final remover = const RuleBasedBackgroundRemover();
+      final result = await remover.remove(
+        Uint8List.fromList(img.encodePng(sourceImage)),
+        trimToForeground: false,
+      );
+      expect(result.success, isTrue);
+
+      final output = img.decodeImage(result.outputImageBytes)!;
+      expect(output.getPixel(30, 30).a.round(), equals(255));
+      expect(output.getPixel(68, 42).a.round(), equals(255));
+      expect(output.getPixel(6, 6).a.round(), equals(0));
+      expect(output.getPixel(86, 60).a.round(), equals(0));
+      expect(result.transparentAreaRatio, greaterThan(0.50));
+      expect(result.transparentAreaRatio, lessThan(0.95));
     },
   );
 
