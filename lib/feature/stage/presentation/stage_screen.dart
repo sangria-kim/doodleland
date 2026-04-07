@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/audio/stage_audio_controller.dart';
 import '../domain/model/placed_character.dart';
 import '../domain/model/motion_preset.dart';
 import '../domain/model/stage_motion.dart';
@@ -86,6 +87,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
   final List<_ConfettiBurstRequest> _pendingConfettiBursts =
       <_ConfettiBurstRequest>[];
   int _nextConfettiBurstId = 1;
+  String? _lastSyncedBackgroundId;
 
   @override
   void dispose() {
@@ -179,6 +181,13 @@ class _StageScreenState extends ConsumerState<StageScreen> {
   Widget build(BuildContext context) {
     ref.listen<StageState>(stageViewModelProvider, _onStageStateChanged);
     final state = ref.watch(stageViewModelProvider);
+    final backgroundId = state.selectedBackground.id;
+    if (_lastSyncedBackgroundId != backgroundId) {
+      _lastSyncedBackgroundId = backgroundId;
+      unawaited(
+        ref.read(stageAudioControllerProvider).syncBackgroundId(backgroundId),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -230,6 +239,13 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                             final started = ref
                                 .read(stageViewModelProvider.notifier)
                                 .requestCharacterRemoval(instanceId);
+                            if (started) {
+                              unawaited(
+                                ref
+                                    .read(stageAudioControllerProvider)
+                                    .playRemoveSfx(),
+                              );
+                            }
 
                             if (context.mounted) {
                               final message = started
@@ -395,6 +411,9 @@ class _StageScreenState extends ConsumerState<StageScreen> {
           character: selection.character,
           objectMotion: selection.objectMotion,
         );
+    if (isAdded) {
+      unawaited(ref.read(stageAudioControllerProvider).playSpawnSfx());
+    }
 
     if (!context.mounted) {
       return;
