@@ -89,6 +89,10 @@ class StageViewModel extends StateNotifier<StageState> {
     );
 
     final placed = state.placedCharacters[index];
+    if (placed.removalState == PlacedCharacterRemovalState.removing) {
+      return false;
+    }
+
     final updated = placed.copyWith(
       stageRuntime: placed.stageRuntime.copyWith(position: clampedPosition),
     );
@@ -115,6 +119,10 @@ class StageViewModel extends StateNotifier<StageState> {
       (acc, item) => item.zIndex > acc ? item.zIndex : acc,
     );
     final placed = state.placedCharacters[index];
+    if (placed.removalState == PlacedCharacterRemovalState.removing) {
+      return;
+    }
+
     final updated = placed.copyWith(zIndex: maxZIndex + 1);
     final nextCharacters = [...state.placedCharacters];
     nextCharacters[index] = updated;
@@ -126,6 +134,47 @@ class StageViewModel extends StateNotifier<StageState> {
   }
 
   bool removeCharacter(String instanceId) {
+    final found = state.placedCharacters.any(
+      (character) => character.instanceId == instanceId,
+    );
+    if (!found) {
+      return false;
+    }
+
+    final remaining = state.placedCharacters
+        .where((character) => character.instanceId != instanceId)
+        .toList(growable: false);
+    state = state.copyWith(placedCharacters: remaining, errorMessage: null);
+    return true;
+  }
+
+  bool requestCharacterRemoval(String instanceId) {
+    final index = state.placedCharacters.indexWhere(
+      (character) => character.instanceId == instanceId,
+    );
+    if (index == -1) {
+      return false;
+    }
+
+    final placed = state.placedCharacters[index];
+    if (placed.removalState == PlacedCharacterRemovalState.removing) {
+      return false;
+    }
+
+    final updated = placed.copyWith(
+      removalState: PlacedCharacterRemovalState.removing,
+      stageRuntime: placed.stageRuntime.copyWith(isPaused: true),
+    );
+    final nextCharacters = [...state.placedCharacters];
+    nextCharacters[index] = updated;
+    state = state.copyWith(
+      placedCharacters: nextCharacters,
+      errorMessage: null,
+    );
+    return true;
+  }
+
+  bool completeCharacterRemoval(String instanceId) {
     final found = state.placedCharacters.any(
       (character) => character.instanceId == instanceId,
     );

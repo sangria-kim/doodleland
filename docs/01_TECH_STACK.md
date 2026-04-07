@@ -57,7 +57,7 @@
 
 ## 무대 렌더링
 - 현재 구현은 `CustomPainter`가 아니라 **위젯 기반 `Stack` + `Transform` + `AnimationController`** 입니다.
-- 캐릭터별로 개별 `AnimationController`를 사용해 등장, 탭 반응, 기본 모션을 제어합니다.
+- 캐릭터별로 개별 `AnimationController`를 사용해 등장, 탭 반응, 기본 모션, 제거(soft exit)를 제어합니다.
 - `stage_painter.dart`는 현재 placeholder 상태이며 실제 렌더링 경로에 연결되어 있지 않습니다.
 
 ## 로컬 저장 구조

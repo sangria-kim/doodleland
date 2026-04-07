@@ -131,6 +131,15 @@ class PlacedCharacter {
   final TouchPreset touchPreset;
   final double scale;
   final int zIndex;
+  final PlacedCharacterRemovalState removalState; // normal / removing
+}
+```
+
+### PlacedCharacterRemovalState
+```dart
+enum PlacedCharacterRemovalState {
+  normal,
+  removing,
 }
 ```
 
@@ -165,7 +174,7 @@ class StageMotionRuntimeState {
 
 저장/런타임 분리 기준:
 - 저장 설정: `objectMotion`, `stageMotion`
-- 런타임 상태: `stageRuntime`(`position`, `direction`, `speed`, `isFlippedHorizontally`, `isPaused`)
+- 런타임 상태: `stageRuntime`(`position`, `direction`, `speed`, `isFlippedHorizontally`, `isPaused`) + `removalState`
 - 현재 stage 씬은 메모리 상태 기반이므로 DB 마이그레이션은 없습니다.
 
 기본값 및 하위 호환:

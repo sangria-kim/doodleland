@@ -270,6 +270,99 @@ void main() {
   });
 
   test(
+    'marks character as removing and ignores duplicate remove requests',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final vm = container.read(stageViewModelProvider.notifier);
+      await vm.placeCharacter(
+        character: Character(
+          id: 17,
+          name: 'sample-remove',
+          originalImagePath: '/tmp/original.png',
+          transparentImagePath: '/tmp/transparent.png',
+          thumbnailPath: '/tmp/thumbnail.png',
+          width: 32,
+          height: 32,
+          createdAt: DateTime(2026, 1, 1),
+        ),
+        objectMotion: MotionPreset.floating,
+      );
+
+      final targetId = container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .single
+          .instanceId;
+      final started = vm.requestCharacterRemoval(targetId);
+      final startedAgain = vm.requestCharacterRemoval(targetId);
+      final stateAfterRequest = container.read(stageViewModelProvider);
+      final targetAfterRequest = stateAfterRequest.placedCharacters.singleWhere(
+        (character) => character.instanceId == targetId,
+      );
+
+      expect(started, isTrue);
+      expect(startedAgain, isFalse);
+      expect(
+        targetAfterRequest.removalState,
+        equals(PlacedCharacterRemovalState.removing),
+      );
+      expect(targetAfterRequest.stageRuntime.isPaused, isTrue);
+
+      final movedWhileRemoving = vm.updateCharacterPosition(
+        instanceId: targetId,
+        position: const Offset(0.2, 0.2),
+      );
+      expect(movedWhileRemoving, isFalse);
+    },
+  );
+
+  test(
+    'removes character only when remove animation completion is committed',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final vm = container.read(stageViewModelProvider.notifier);
+      await vm.placeCharacter(
+        character: Character(
+          id: 18,
+          name: 'sample-complete-remove',
+          originalImagePath: '/tmp/original.png',
+          transparentImagePath: '/tmp/transparent.png',
+          thumbnailPath: '/tmp/thumbnail.png',
+          width: 32,
+          height: 32,
+          createdAt: DateTime(2026, 1, 1),
+        ),
+        objectMotion: MotionPreset.floating,
+      );
+
+      final targetId = container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .single
+          .instanceId;
+      final started = vm.requestCharacterRemoval(targetId);
+      final stillOnStage = container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .any((character) => character.instanceId == targetId);
+      final completed = vm.completeCharacterRemoval(targetId);
+      final existsAfterCompletion = container
+          .read(stageViewModelProvider)
+          .placedCharacters
+          .any((character) => character.instanceId == targetId);
+
+      expect(started, isTrue);
+      expect(stillOnStage, isTrue);
+      expect(completed, isTrue);
+      expect(existsAfterCompletion, isFalse);
+    },
+  );
+
+  test(
     'applies tap, drag, and remove transitions for placed characters',
     () async {
       final container = ProviderContainer();

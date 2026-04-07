@@ -14,6 +14,62 @@ import '../domain/model/stage_motion_engine.dart';
 import 'stage_viewmodel.dart';
 import 'widget/character_selector.dart';
 
+class _StageEffectConfig {
+  static const int entranceDurationMs = 800;
+  static const double entranceStartScale = 0.5;
+  static const double entranceOvershootScale = 1.5;
+  static const double entranceEndScale = 1.0;
+
+  static const int removeDurationMs = 1000;
+  static const double removeTranslateStartY = 0.0;
+  static const double removeTranslateAnticipationY = 8.0;
+  static const double removeTranslateEndY = -36.0;
+  static const double removeHorizontalTravelPx = 12.0;
+  static const double removeScaleStart = 1.0;
+  static const double removeScalePop = 1.08;
+  static const double removeScaleEnd = 0.58;
+  static const double removeRotationRadians = 0.16;
+  static const double removeOpacityStart = 1.0;
+  static const double removeOpacityEnd = 0.0;
+
+  static const int confettiCount = 28;
+  static const double confettiMinSize = 3.0;
+  static const double confettiMaxSize = 6.0;
+  static const int confettiMinDurationMs = 800;
+  static const int confettiMaxDurationMs = 800;
+  static const double confettiDriftRange = 34.0;
+  static const double confettiSpawnAreaWidth = 210.0;
+
+  static const List<Color> confettiColorPalette = [
+    Color(0xFFE84A5F),
+    Color(0xFFFFC857),
+    Color(0xFF3B82F6),
+    Color(0xFF22C55E),
+    Color(0xFF9B5DE5),
+    Color(0xFFFF66C4),
+    Color(0xFFFF8C42),
+  ];
+}
+
+@immutable
+class _ConfettiBurstRequest {
+  const _ConfettiBurstRequest({
+    required this.id,
+    required this.normalizedX,
+    required this.normalizedY,
+    required this.objectWidth,
+    required this.objectHeight,
+    required this.count,
+  });
+
+  final int id;
+  final double normalizedX;
+  final double normalizedY;
+  final double objectWidth;
+  final double objectHeight;
+  final int count;
+}
+
 class StageScreen extends ConsumerStatefulWidget {
   const StageScreen({super.key});
 
@@ -26,6 +82,10 @@ class _StageScreenState extends ConsumerState<StageScreen> {
 
   bool _showControls = true;
   Timer? _controlTimer;
+  final Set<String> _pendingEntranceInstanceIds = <String>{};
+  final List<_ConfettiBurstRequest> _pendingConfettiBursts =
+      <_ConfettiBurstRequest>[];
+  int _nextConfettiBurstId = 1;
 
   @override
   void dispose() {
@@ -48,8 +108,76 @@ class _StageScreenState extends ConsumerState<StageScreen> {
     });
   }
 
+  void _onStageStateChanged(StageState? previous, StageState next) {
+    if (!mounted || previous == null) {
+      return;
+    }
+
+    final previousIds = previous.placedCharacters
+        .map((character) => character.instanceId)
+        .toSet();
+    final nextIds = next.placedCharacters
+        .map((character) => character.instanceId)
+        .toSet();
+    final staleEntranceIds = _pendingEntranceInstanceIds
+        .difference(nextIds)
+        .toSet();
+    final addedCharacters = next.placedCharacters
+        .where((character) => !previousIds.contains(character.instanceId))
+        .toList(growable: false);
+
+    if (addedCharacters.isEmpty && staleEntranceIds.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _pendingEntranceInstanceIds.removeAll(staleEntranceIds);
+      for (final character in addedCharacters) {
+        final objectSize = _characterDisplaySize(character);
+        _pendingEntranceInstanceIds.add(character.instanceId);
+        _pendingConfettiBursts.add(
+          _ConfettiBurstRequest(
+            id: _nextConfettiBurstId++,
+            normalizedX: character.position.dx.clamp(0.08, 0.92).toDouble(),
+            normalizedY: character.position.dy.clamp(0.08, 0.92).toDouble(),
+            objectWidth: objectSize.width,
+            objectHeight: objectSize.height,
+            count: _adaptiveConfettiCount(),
+          ),
+        );
+      }
+    });
+  }
+
+  int _adaptiveConfettiCount() {
+    final burstLoad = _pendingConfettiBursts.length;
+    final reduced = _StageEffectConfig.confettiCount - burstLoad * 4;
+    return reduced.clamp(14, _StageEffectConfig.confettiCount).toInt();
+  }
+
+  void _handleEntranceCompleted(String instanceId) {
+    if (!_pendingEntranceInstanceIds.contains(instanceId)) {
+      return;
+    }
+    setState(() {
+      _pendingEntranceInstanceIds.remove(instanceId);
+    });
+  }
+
+  void _handleConfettiBurstsConsumed(Set<int> consumedIds) {
+    if (consumedIds.isEmpty) {
+      return;
+    }
+    setState(() {
+      _pendingConfettiBursts.removeWhere(
+        (request) => consumedIds.contains(request.id),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<StageState>(stageViewModelProvider, _onStageStateChanged);
     final state = ref.watch(stageViewModelProvider);
 
     return Scaffold(
@@ -99,20 +227,34 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                                 );
                           },
                           onDelete: (instanceId) async {
-                            final removed = ref
+                            final started = ref
                                 .read(stageViewModelProvider.notifier)
-                                .removeCharacter(instanceId);
+                                .requestCharacterRemoval(instanceId);
 
                             if (context.mounted) {
-                              final message = removed
-                                  ? '무대에서 제거했어요.'
+                              final message = started
+                                  ? '무대에서 제거 중이에요.'
                                   : '제거하지 못했어요.';
                               ScaffoldMessenger.of(
                                 context,
                               ).showSnackBar(SnackBar(content: Text(message)));
                             }
                           },
+                          onRemoveAnimationCompleted: (instanceId) {
+                            ref
+                                .read(stageViewModelProvider.notifier)
+                                .completeCharacterRemoval(instanceId);
+                          },
+                          pendingEntranceInstanceIds:
+                              _pendingEntranceInstanceIds,
+                          onEntranceCompleted: _handleEntranceCompleted,
                         ),
+                ),
+              ),
+              Positioned.fill(
+                child: _ConfettiEffectOverlay(
+                  bursts: _pendingConfettiBursts,
+                  onBurstsCompleted: _handleConfettiBurstsConsumed,
                 ),
               ),
               Positioned(
@@ -286,6 +428,9 @@ class _PlacedCharactersStage extends StatelessWidget {
     required this.onBringToFront,
     required this.onMove,
     required this.onDelete,
+    required this.onRemoveAnimationCompleted,
+    required this.pendingEntranceInstanceIds,
+    required this.onEntranceCompleted,
   });
 
   final List<PlacedCharacter> placedCharacters;
@@ -294,6 +439,9 @@ class _PlacedCharactersStage extends StatelessWidget {
   final ValueChanged<String> onBringToFront;
   final void Function(String instanceId, Offset position) onMove;
   final Future<void> Function(String instanceId) onDelete;
+  final ValueChanged<String> onRemoveAnimationCompleted;
+  final Set<String> pendingEntranceInstanceIds;
+  final ValueChanged<String> onEntranceCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -310,6 +458,11 @@ class _PlacedCharactersStage extends StatelessWidget {
             onBringToFront: onBringToFront,
             onMove: onMove,
             onDelete: onDelete,
+            onRemoveAnimationCompleted: onRemoveAnimationCompleted,
+            shouldPlayEntrance: pendingEntranceInstanceIds.contains(
+              placed.instanceId,
+            ),
+            onEntranceCompleted: onEntranceCompleted,
           ),
       ],
     );
@@ -325,6 +478,9 @@ class _InteractivePlacedCharacter extends StatefulWidget {
     required this.onBringToFront,
     required this.onMove,
     required this.onDelete,
+    required this.onRemoveAnimationCompleted,
+    required this.shouldPlayEntrance,
+    required this.onEntranceCompleted,
   });
 
   final PlacedCharacter placed;
@@ -333,6 +489,9 @@ class _InteractivePlacedCharacter extends StatefulWidget {
   final ValueChanged<String> onBringToFront;
   final void Function(String instanceId, Offset position) onMove;
   final Future<void> Function(String instanceId) onDelete;
+  final ValueChanged<String> onRemoveAnimationCompleted;
+  final bool shouldPlayEntrance;
+  final ValueChanged<String> onEntranceCompleted;
 
   @override
   State<_InteractivePlacedCharacter> createState() =>
@@ -346,6 +505,13 @@ class _InteractivePlacedCharacterState
 
   late final AnimationController _entryController;
   late final Animation<double> _entryScale;
+  late final Animation<double> _entryOpacity;
+  late final AnimationController _removeController;
+  late final Animation<double> _removeTranslateY;
+  late final Animation<double> _removeTranslateXFactor;
+  late final Animation<double> _removeScale;
+  late final Animation<double> _removeRotateFactor;
+  late final Animation<double> _removeOpacity;
   late final AnimationController _bounceController;
   late final Animation<double> _bounceScale;
   late final AnimationController _objectMotionController;
@@ -356,6 +522,14 @@ class _InteractivePlacedCharacterState
   bool _isDragging = false;
   Duration _lastTickTimestamp = Duration.zero;
   late StageMotionRuntimeState _stageRuntime;
+  bool _isMotionActivated = false;
+  bool _hasCharacterImageReady = false;
+  bool _entranceStarted = false;
+  bool _entranceCompleted = false;
+  bool _isRemoving = false;
+  bool _removeCompletionNotified = false;
+  double _removeTranslateXEnd = 0.0;
+  double _removeRotationEnd = 0.0;
 
   @override
   void initState() {
@@ -364,24 +538,86 @@ class _InteractivePlacedCharacterState
 
     _entryController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 520),
+      duration: const Duration(
+        milliseconds: _StageEffectConfig.entranceDurationMs,
+      ),
     );
     _entryScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween(
-          begin: 0.0,
-          end: 1.2,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 45,
+          begin: _StageEffectConfig.entranceStartScale,
+          end: _StageEffectConfig.entranceOvershootScale,
+        ).chain(CurveTween(curve: Curves.fastOutSlowIn)),
+        weight: 55,
       ),
       TweenSequenceItem(
         tween: Tween(
-          begin: 1.2,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeIn)),
-        weight: 55,
+          begin: _StageEffectConfig.entranceOvershootScale,
+          end: _StageEffectConfig.entranceEndScale,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 45,
       ),
     ]).animate(_entryController);
+    _entryOpacity = CurvedAnimation(
+      parent: _entryController,
+      curve: const Interval(0.0, 0.62, curve: Curves.easeOut),
+    );
+    _removeController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        milliseconds: _StageEffectConfig.removeDurationMs,
+      ),
+    );
+    _removeTranslateY = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: _StageEffectConfig.removeTranslateStartY,
+          end: _StageEffectConfig.removeTranslateAnticipationY,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 18,
+      ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: _StageEffectConfig.removeTranslateAnticipationY,
+          end: _StageEffectConfig.removeTranslateEndY,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 82,
+      ),
+    ]).animate(_removeController);
+    _removeTranslateXFactor = CurvedAnimation(
+      parent: _removeController,
+      curve: const Interval(0.0, 0.72, curve: Curves.easeOutCubic),
+    );
+    _removeScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: _StageEffectConfig.removeScaleStart,
+          end: _StageEffectConfig.removeScalePop,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 24,
+      ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: _StageEffectConfig.removeScalePop,
+          end: _StageEffectConfig.removeScaleEnd,
+        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+        weight: 76,
+      ),
+    ]).animate(_removeController);
+    _removeRotateFactor = CurvedAnimation(
+      parent: _removeController,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+    );
+    _removeOpacity =
+        Tween<double>(
+          begin: _StageEffectConfig.removeOpacityStart,
+          end: _StageEffectConfig.removeOpacityEnd,
+        ).animate(
+          CurvedAnimation(
+            parent: _removeController,
+            curve: const Interval(0.45, 1.0, curve: Curves.easeIn),
+          ),
+        );
 
     _bounceController = AnimationController(
       vsync: this,
@@ -413,8 +649,12 @@ class _InteractivePlacedCharacterState
 
     _stageTicker = createTicker(_onStageTick)..start();
 
-    _entryController.forward();
-    _startObjectMotionAnimation();
+    _isRemoving =
+        widget.placed.removalState == PlacedCharacterRemovalState.removing;
+    _armEntranceIfNeeded();
+    if (_isRemoving) {
+      _beginRemoving();
+    }
 
     _bounceController.addStatusListener((status) {
       if (status == AnimationStatus.completed && !_isDragging && mounted) {
@@ -428,6 +668,22 @@ class _InteractivePlacedCharacterState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.placed.instanceId != widget.placed.instanceId) {
       _stageRuntime = widget.placed.stageRuntime;
+      _isMotionActivated = false;
+      _hasCharacterImageReady = false;
+      _entranceStarted = false;
+      _entranceCompleted = false;
+      _isRemoving = false;
+      _removeCompletionNotified = false;
+      _removeController.value = 0.0;
+      _removeTranslateXEnd = 0.0;
+      _removeRotationEnd = 0.0;
+    }
+    if (!oldWidget.shouldPlayEntrance && widget.shouldPlayEntrance) {
+      _armEntranceIfNeeded(forceRestart: true);
+    }
+    if (!_isRemoving &&
+        widget.placed.removalState == PlacedCharacterRemovalState.removing) {
+      _beginRemoving();
     }
   }
 
@@ -435,12 +691,18 @@ class _InteractivePlacedCharacterState
   void dispose() {
     _stageTicker.dispose();
     _entryController.dispose();
+    _removeController.dispose();
     _bounceController.dispose();
     _objectMotionController.dispose();
     super.dispose();
   }
 
   void _onStageTick(Duration elapsed) {
+    if (!_isMotionActivated || _isRemoving) {
+      _lastTickTimestamp = elapsed;
+      return;
+    }
+
     final delta = elapsed - _lastTickTimestamp;
     _lastTickTimestamp = elapsed;
 
@@ -471,8 +733,109 @@ class _InteractivePlacedCharacterState
     };
   }
 
+  void _armEntranceIfNeeded({bool forceRestart = false}) {
+    if (_isRemoving) {
+      _isMotionActivated = false;
+      _pauseObjectMotionAnimation();
+      return;
+    }
+
+    if (!widget.shouldPlayEntrance) {
+      _isMotionActivated = true;
+      _entranceCompleted = true;
+      _entranceStarted = true;
+      _entryController.value = 1.0;
+      _startObjectMotionAnimation();
+      return;
+    }
+
+    if (_entranceCompleted && !forceRestart) {
+      _entryController.value = 1.0;
+      return;
+    }
+
+    _entranceCompleted = false;
+    _entranceStarted = false;
+    _isMotionActivated = false;
+    _pauseObjectMotionAnimation();
+    _entryController.value = 0.0;
+
+    if (_hasCharacterImageReady) {
+      _startEntranceAnimation();
+    }
+  }
+
+  void _startEntranceAnimation() {
+    if (_isRemoving ||
+        !widget.shouldPlayEntrance ||
+        _entranceStarted ||
+        _entranceCompleted) {
+      return;
+    }
+
+    _entranceStarted = true;
+    _entryController.forward(from: 0.0).whenComplete(() {
+      if (!mounted || _entranceCompleted) {
+        return;
+      }
+      _entranceCompleted = true;
+      _isMotionActivated = true;
+      widget.onEntranceCompleted(widget.placed.instanceId);
+      if (!_isDragging) {
+        _startObjectMotionAnimation();
+      }
+    });
+  }
+
+  void _handleCharacterImageReady() {
+    if (_hasCharacterImageReady) {
+      return;
+    }
+    _hasCharacterImageReady = true;
+    if (_isRemoving) {
+      return;
+    }
+    if (widget.shouldPlayEntrance) {
+      _startEntranceAnimation();
+    }
+  }
+
+  void _beginRemoving() {
+    if (_isRemoving && _removeController.isAnimating) {
+      return;
+    }
+
+    _isRemoving = true;
+    _isMotionActivated = false;
+    _isDragging = false;
+    _dragStartPosition = _stageRuntime.position;
+    _stageRuntime = _stageRuntime.copyWith(isPaused: true);
+    final removeDirectionSign =
+        _stageRuntime.direction == StageMotionDirection.leftToRight
+        ? 1.0
+        : -1.0;
+    _removeTranslateXEnd =
+        _StageEffectConfig.removeHorizontalTravelPx * removeDirectionSign;
+    _removeRotationEnd =
+        _StageEffectConfig.removeRotationRadians * removeDirectionSign;
+
+    _entryController.stop();
+    _entryController.value = 1.0;
+    _bounceController.stop();
+    _bounceController.value = 0.0;
+    _pauseObjectMotionAnimation();
+
+    _removeController.forward(from: 0.0).whenComplete(() {
+      if (!mounted || _removeCompletionNotified) {
+        return;
+      }
+      _removeCompletionNotified = true;
+      widget.onRemoveAnimationCompleted(widget.placed.instanceId);
+    });
+  }
+
   void _startObjectMotionAnimation() {
-    if (_isDragging) {
+    if (_isRemoving || _isDragging || !_isMotionActivated) {
       return;
     }
     if (!_objectMotionController.isAnimating) {
@@ -487,6 +850,9 @@ class _InteractivePlacedCharacterState
   }
 
   void _handleTap() {
+    if (_isRemoving) {
+      return;
+    }
     widget.onInteraction();
     widget.onBringToFront(widget.placed.instanceId);
 
@@ -503,6 +869,9 @@ class _InteractivePlacedCharacterState
   }
 
   void _handlePanStart(DragStartDetails details) {
+    if (_isRemoving) {
+      return;
+    }
     widget.onInteraction();
     widget.onBringToFront(widget.placed.instanceId);
     _dragStartPosition = _stageRuntime.position;
@@ -513,7 +882,7 @@ class _InteractivePlacedCharacterState
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
-    if (!_isDragging) {
+    if (_isRemoving || !_isDragging) {
       return;
     }
     widget.onInteraction();
@@ -546,14 +915,24 @@ class _InteractivePlacedCharacterState
   }
 
   void _handlePanEnd(DragEndDetails _) {
+    if (_isRemoving) {
+      return;
+    }
     _resumeStageMotionFromDrag();
   }
 
   void _handlePanCancel() {
-    if (!_isDragging) {
+    if (_isRemoving || !_isDragging) {
       return;
     }
     _resumeStageMotionFromDrag();
+  }
+
+  Future<void> _handleRemoveRequest() async {
+    if (_isRemoving) {
+      return;
+    }
+    await widget.onDelete(widget.placed.instanceId);
   }
 
   void _resumeStageMotionFromDrag() {
@@ -618,6 +997,7 @@ class _InteractivePlacedCharacterState
   Widget build(BuildContext context) {
     final x = _stageRuntime.position.dx;
     final y = _stageRuntime.position.dy.clamp(0.0, 1.0);
+    final canInteract = !_isRemoving;
     return Align(
       alignment: Alignment(x * 2 - 1, y * 2 - 1),
       child: AnimatedBuilder(
@@ -625,45 +1005,418 @@ class _InteractivePlacedCharacterState
           _entryScale,
           _bounceScale,
           _objectMotionController,
+          _removeController,
         ]),
         builder: (context, child) {
           final objectMotionOffset = _objectMotionOffset();
           final objectMotionRotation = _objectMotionRotation();
-          return Transform.scale(
-            scale: _entryScale.value * _bounceScale.value * widget.placed.scale,
-            child: Transform.translate(
-              offset: Offset(
-                objectMotionOffset.dx * widget.stageSize.width,
-                objectMotionOffset.dy * widget.stageSize.height,
-              ),
-              child: Transform.rotate(
-                angle: objectMotionRotation,
-                child: child,
+          final removeOffsetY = _isRemoving ? _removeTranslateY.value : 0.0;
+          final removeOffsetX = _isRemoving
+              ? _removeTranslateXFactor.value * _removeTranslateXEnd
+              : 0.0;
+          final entryOpacity = _entryOpacity.value.clamp(0.0, 1.0);
+          final opacity = _isRemoving
+              ? _removeOpacity.value.clamp(0.0, 1.0)
+              : entryOpacity;
+          final removeScale = _isRemoving ? _removeScale.value : 1.0;
+          final removeRotation = _isRemoving
+              ? _removeRotateFactor.value * _removeRotationEnd
+              : 0.0;
+          return Opacity(
+            opacity: opacity,
+            child: Transform.scale(
+              scale:
+                  _entryScale.value *
+                  _bounceScale.value *
+                  widget.placed.scale *
+                  removeScale,
+              child: Transform.translate(
+                offset: Offset(
+                  objectMotionOffset.dx * widget.stageSize.width +
+                      removeOffsetX,
+                  objectMotionOffset.dy * widget.stageSize.height +
+                      removeOffsetY,
+                ),
+                child: Transform.rotate(
+                  angle: objectMotionRotation + removeRotation,
+                  child: child,
+                ),
               ),
             ),
           );
         },
         child: GestureDetector(
-          onTap: _handleTap,
-          onPanStart: _handlePanStart,
-          onPanUpdate: _handlePanUpdate,
-          onPanEnd: _handlePanEnd,
-          onPanCancel: _handlePanCancel,
-          onLongPress: () {
-            widget.onInteraction();
-            widget.onDelete(widget.placed.instanceId);
-          },
-          child: _PlacedCharacterBubble(placed: widget.placed),
+          onTap: canInteract ? _handleTap : null,
+          onPanStart: canInteract ? _handlePanStart : null,
+          onPanUpdate: canInteract ? _handlePanUpdate : null,
+          onPanEnd: canInteract ? _handlePanEnd : null,
+          onPanCancel: canInteract ? _handlePanCancel : null,
+          onLongPress: canInteract
+              ? () {
+                  widget.onInteraction();
+                  _handleRemoveRequest();
+                }
+              : null,
+          child: _PlacedCharacterBubble(
+            placed: widget.placed,
+            onImageReady: _handleCharacterImageReady,
+          ),
         ),
       ),
     );
   }
 }
 
+class _ConfettiEffectOverlay extends StatefulWidget {
+  const _ConfettiEffectOverlay({
+    required this.bursts,
+    required this.onBurstsCompleted,
+  });
+
+  final List<_ConfettiBurstRequest> bursts;
+  final ValueChanged<Set<int>> onBurstsCompleted;
+
+  @override
+  State<_ConfettiEffectOverlay> createState() => _ConfettiEffectOverlayState();
+}
+
+class _ConfettiEffectOverlayState extends State<_ConfettiEffectOverlay>
+    with SingleTickerProviderStateMixin {
+  final math.Random _random = math.Random();
+  final Map<int, _ConfettiBurstRuntime> _activeBursts =
+      <int, _ConfettiBurstRuntime>{};
+  late final Ticker _ticker;
+  Duration _lastTickerElapsed = Duration.zero;
+  double _clockSeconds = 0.0;
+  bool _isTicking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_onTick);
+    _syncBurstRequests();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ConfettiEffectOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncBurstRequests();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _syncBurstRequests() {
+    var hasNewBurst = false;
+    final nowSec = _clockSeconds;
+    for (final request in widget.bursts) {
+      if (_activeBursts.containsKey(request.id)) {
+        continue;
+      }
+      _activeBursts[request.id] = _buildBurstRuntime(request, nowSec);
+      hasNewBurst = true;
+    }
+
+    if (hasNewBurst) {
+      if (!_isTicking) {
+        _startTicker();
+      }
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  void _startTicker() {
+    _lastTickerElapsed = Duration.zero;
+    _isTicking = true;
+    _ticker.start();
+  }
+
+  _ConfettiBurstRuntime _buildBurstRuntime(
+    _ConfettiBurstRequest request,
+    double nowSec,
+  ) {
+    final particles = List.generate(request.count, (_) {
+      final size =
+          _StageEffectConfig.confettiMinSize +
+          _random.nextDouble() *
+              (_StageEffectConfig.confettiMaxSize -
+                  _StageEffectConfig.confettiMinSize);
+      final lifetimeMs =
+          _StageEffectConfig.confettiMinDurationMs +
+          _random.nextInt(
+            _StageEffectConfig.confettiMaxDurationMs -
+                _StageEffectConfig.confettiMinDurationMs +
+                1,
+          );
+      final lifetimeSec = lifetimeMs / 1000;
+      final delaySec = _random.nextDouble() * 0.14;
+      final isCircle = _random.nextDouble() < 0.12;
+      final aspectRatio = 0.6 + (_random.nextDouble() * 1.2);
+      final drift =
+          (_random.nextDouble() - 0.5) * _StageEffectConfig.confettiDriftRange;
+      final wobbleAmplitude = 3.5 + (_random.nextDouble() * 8.0);
+      final wobbleFrequency = 1.2 + (_random.nextDouble() * 2.4);
+      final rotationSpeed =
+          (_random.nextDouble() * math.pi * 3.6) *
+          (_random.nextBool() ? 1 : -1);
+
+      return _ConfettiParticle(
+        startXOffset:
+            (_random.nextDouble() - 0.5) *
+            (request.objectWidth * 1.1).clamp(
+              42.0,
+              _StageEffectConfig.confettiSpawnAreaWidth,
+            ),
+        startYOffset: -6.0 + (_random.nextDouble() * 12.0),
+        endYOffset: _random.nextDouble() * 18.0,
+        driftX: drift,
+        wobbleAmplitude: wobbleAmplitude,
+        wobbleFrequency: wobbleFrequency,
+        wobblePhase: _random.nextDouble() * math.pi * 2,
+        rotationStart: _random.nextDouble() * math.pi * 2,
+        rotationSpeed: rotationSpeed,
+        size: size,
+        aspectRatio: aspectRatio,
+        color:
+            _StageEffectConfig.confettiColorPalette[_random.nextInt(
+              _StageEffectConfig.confettiColorPalette.length,
+            )],
+        lifeSeconds: lifetimeSec,
+        delaySeconds: delaySec,
+        isCircle: isCircle,
+      );
+    });
+
+    final maxParticleTime = particles
+        .map((particle) => particle.delaySeconds + particle.lifeSeconds)
+        .fold<double>(0.0, math.max);
+    return _ConfettiBurstRuntime(
+      id: request.id,
+      normalizedX: request.normalizedX,
+      normalizedY: request.normalizedY,
+      objectHeight: request.objectHeight,
+      startedAtSeconds: nowSec,
+      endAtSeconds: nowSec + maxParticleTime + 0.04,
+      particles: particles,
+    );
+  }
+
+  void _onTick(Duration elapsed) {
+    final delta = elapsed - _lastTickerElapsed;
+    _lastTickerElapsed = elapsed;
+    if (delta.isNegative) {
+      return;
+    }
+    _clockSeconds += delta.inMicroseconds / Duration.microsecondsPerSecond;
+    if (!mounted) {
+      return;
+    }
+
+    final nowSec = _clockSeconds;
+    final completedIds = _activeBursts.values
+        .where((burst) => burst.endAtSeconds <= nowSec)
+        .map((burst) => burst.id)
+        .toSet();
+
+    if (completedIds.isNotEmpty) {
+      for (final id in completedIds) {
+        _activeBursts.remove(id);
+      }
+      widget.onBurstsCompleted(completedIds);
+    }
+
+    if (_activeBursts.isEmpty) {
+      _ticker.stop();
+      _isTicking = false;
+      setState(() {});
+      return;
+    }
+
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_activeBursts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _ConfettiPainter(
+            bursts: _activeBursts.values.toList(growable: false),
+            elapsedSeconds: _clockSeconds,
+          ),
+          size: Size.infinite,
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter({required this.bursts, required this.elapsedSeconds});
+
+  final List<_ConfettiBurstRuntime> bursts;
+  final double elapsedSeconds;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) {
+      return;
+    }
+
+    for (final burst in bursts) {
+      final spawnX = burst.normalizedX * size.width;
+      final centerY = burst.normalizedY * size.height;
+      final objectTopY = centerY - (burst.objectHeight / 2);
+      final objectBottomY = centerY + (burst.objectHeight / 2);
+      for (final particle in burst.particles) {
+        final localTime =
+            elapsedSeconds - burst.startedAtSeconds - particle.delaySeconds;
+        if (localTime < 0) {
+          continue;
+        }
+
+        final progress = (localTime / particle.lifeSeconds).clamp(0.0, 1.0);
+        if (progress >= 1.0) {
+          continue;
+        }
+
+        final easedFall = Curves.easeIn.transform(progress);
+        final startY =
+            objectTopY - (burst.objectHeight * 0.5) + particle.startYOffset;
+        final endY = objectBottomY + particle.endYOffset;
+        final y = startY + ((endY - startY) * easedFall);
+
+        final x =
+            spawnX +
+            particle.startXOffset +
+            (particle.driftX * progress) +
+            math.sin(
+                  progress * math.pi * 2 * particle.wobbleFrequency +
+                      particle.wobblePhase,
+                ) *
+                particle.wobbleAmplitude;
+
+        var opacity = 1.0;
+        if (progress < 0.12) {
+          opacity *= Curves.easeOut.transform(progress / 0.12);
+        }
+        if (progress > 0.76) {
+          opacity *= 1.0 - ((progress - 0.76) / 0.24).clamp(0.0, 1.0);
+        }
+
+        if (opacity <= 0.0) {
+          continue;
+        }
+
+        final rotation =
+            particle.rotationStart + (particle.rotationSpeed * progress);
+        final paint = Paint()
+          ..color = particle.color.withValues(alpha: opacity.clamp(0.0, 1.0));
+
+        canvas.save();
+        canvas.translate(x, y);
+        canvas.rotate(rotation);
+        if (particle.isCircle) {
+          canvas.drawCircle(Offset.zero, particle.size / 2, paint);
+        } else {
+          final width = particle.size * particle.aspectRatio;
+          final rect = Rect.fromCenter(
+            center: Offset.zero,
+            width: width,
+            height: particle.size,
+          );
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(rect, const Radius.circular(1.2)),
+            paint,
+          );
+        }
+        canvas.restore();
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) {
+    return oldDelegate.bursts != bursts ||
+        oldDelegate.elapsedSeconds != elapsedSeconds;
+  }
+}
+
+@immutable
+class _ConfettiBurstRuntime {
+  const _ConfettiBurstRuntime({
+    required this.id,
+    required this.normalizedX,
+    required this.normalizedY,
+    required this.objectHeight,
+    required this.startedAtSeconds,
+    required this.endAtSeconds,
+    required this.particles,
+  });
+
+  final int id;
+  final double normalizedX;
+  final double normalizedY;
+  final double objectHeight;
+  final double startedAtSeconds;
+  final double endAtSeconds;
+  final List<_ConfettiParticle> particles;
+}
+
+@immutable
+class _ConfettiParticle {
+  const _ConfettiParticle({
+    required this.startXOffset,
+    required this.startYOffset,
+    required this.endYOffset,
+    required this.driftX,
+    required this.wobbleAmplitude,
+    required this.wobbleFrequency,
+    required this.wobblePhase,
+    required this.rotationStart,
+    required this.rotationSpeed,
+    required this.size,
+    required this.aspectRatio,
+    required this.color,
+    required this.lifeSeconds,
+    required this.delaySeconds,
+    required this.isCircle,
+  });
+
+  final double startXOffset;
+  final double startYOffset;
+  final double endYOffset;
+  final double driftX;
+  final double wobbleAmplitude;
+  final double wobbleFrequency;
+  final double wobblePhase;
+  final double rotationStart;
+  final double rotationSpeed;
+  final double size;
+  final double aspectRatio;
+  final Color color;
+  final double lifeSeconds;
+  final double delaySeconds;
+  final bool isCircle;
+}
+
 class _PlacedCharacterBubble extends StatelessWidget {
-  const _PlacedCharacterBubble({required this.placed});
+  const _PlacedCharacterBubble({
+    required this.placed,
+    required this.onImageReady,
+  });
 
   final PlacedCharacter placed;
+  final VoidCallback onImageReady;
 
   @override
   Widget build(BuildContext context) {
@@ -674,8 +1427,16 @@ class _PlacedCharacterBubble extends StatelessWidget {
       child: Image.file(
         File(placed.transparentImagePath),
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            const Center(child: Icon(Icons.image_not_supported)),
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            onImageReady();
+          }
+          return child;
+        },
+        errorBuilder: (context, error, stackTrace) {
+          onImageReady();
+          return const Center(child: Icon(Icons.image_not_supported));
+        },
       ),
     );
   }

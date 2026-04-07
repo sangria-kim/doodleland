@@ -6,6 +6,8 @@ import 'motion_preset.dart';
 import 'stage_motion.dart';
 import 'touch_preset.dart';
 
+enum PlacedCharacterRemovalState { normal, removing }
+
 @immutable
 class PlacedCharacter {
   const PlacedCharacter({
@@ -22,6 +24,7 @@ class PlacedCharacter {
     required this.touchPreset,
     required this.scale,
     required this.zIndex,
+    this.removalState = PlacedCharacterRemovalState.normal,
   });
 
   final String instanceId;
@@ -37,6 +40,7 @@ class PlacedCharacter {
   final TouchPreset touchPreset;
   final double scale;
   final int zIndex;
+  final PlacedCharacterRemovalState removalState;
 
   Offset get position => stageRuntime.position;
   bool get isFlippedHorizontally => stageRuntime.isFlippedHorizontally;
@@ -55,6 +59,7 @@ class PlacedCharacter {
     TouchPreset? touchPreset,
     double? scale,
     int? zIndex,
+    PlacedCharacterRemovalState? removalState,
   }) {
     return PlacedCharacter(
       instanceId: instanceId ?? this.instanceId,
@@ -70,6 +75,7 @@ class PlacedCharacter {
       touchPreset: touchPreset ?? this.touchPreset,
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
+      removalState: removalState ?? this.removalState,
     );
   }
 }
