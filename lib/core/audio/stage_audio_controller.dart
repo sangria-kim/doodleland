@@ -45,6 +45,7 @@ class AudioplayersStageBgmPlayer implements StageBgmPlayer {
       AssetSource(assetPath),
       mode: PlayerMode.mediaPlayer,
       volume: StageAudioController.bgmVolume,
+      ctx: StageAudioController.bgmAudioContext,
     );
   }
 
@@ -73,8 +74,9 @@ class AudioplayersStageSfxPlayer implements StageSfxPlayer {
   Future<void> playAsset(String assetPath) async {
     await _player.play(
       AssetSource(assetPath),
-      mode: PlayerMode.lowLatency,
+      mode: PlayerMode.mediaPlayer,
       volume: StageAudioController.sfxVolume,
+      ctx: StageAudioController.sfxAudioContext,
     );
   }
 
@@ -96,6 +98,14 @@ class StageAudioController {
 
   static const String _spawnSfxAsset = 'audio/sfx/sfx_spawn_pop.ogg';
   static const String _removeSfxAsset = 'audio/sfx/sfx_remove_swoosh.ogg';
+  static final AudioContext _bgmAudioContext = AudioContextConfig(
+    focus: AudioContextConfigFocus.gain,
+    route: AudioContextConfigRoute.system,
+  ).build();
+  static final AudioContext _sfxAudioContext = AudioContextConfig(
+    focus: AudioContextConfigFocus.mixWithOthers,
+    route: AudioContextConfigRoute.system,
+  ).build();
 
   static const Map<String, String> _bgmAssetByBackgroundId = {
     'forest': 'audio/bgm/bgm_forest_happy_animal_friends.ogg',
@@ -105,6 +115,9 @@ class StageAudioController {
 
   final StageBgmPlayer _bgmPlayer;
   final StageSfxPlayer _sfxPlayer;
+
+  static AudioContext get bgmAudioContext => _bgmAudioContext;
+  static AudioContext get sfxAudioContext => _sfxAudioContext;
 
   String? _currentBgmAsset;
   bool _isBgmPlaying = false;
