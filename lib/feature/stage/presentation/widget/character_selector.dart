@@ -216,7 +216,7 @@ class _MotionSelectionSheet extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                flex: 4,
+                                flex: 5,
                                 child: _CharacterPreviewPanel(
                                   character: character,
                                   selectedMotion: state,
@@ -224,7 +224,7 @@ class _MotionSelectionSheet extends StatelessWidget {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                flex: 6,
+                                flex: 5,
                                 child: _MotionSelectionPanel(
                                   selectedMotion: state,
                                   onChanged: (motion) {

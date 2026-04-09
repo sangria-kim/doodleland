@@ -19,27 +19,30 @@ class MotionSelector extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 12.0;
-        final isWide = constraints.maxWidth >= 520;
-        final itemWidth = isWide
-            ? (constraints.maxWidth - spacing) / 2
-            : constraints.maxWidth;
+        final estimatedHeight = constraints.maxWidth >= 520
+            ? (compact ? 68.0 : 84.0)
+            : (compact ? 62.0 : 74.0);
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: MotionPreset.values
-              .map(
-                (motion) => SizedBox(
-                  width: itemWidth,
-                  child: _MotionOptionCard(
-                    motion: motion,
-                    selected: selectedMotion == motion,
-                    onTap: () => onChanged(motion),
-                    compact: compact,
-                  ),
-                ),
-              )
-              .toList(growable: false),
+        return GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          itemCount: MotionPreset.values.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: spacing,
+            crossAxisSpacing: spacing,
+            mainAxisExtent: estimatedHeight,
+          ),
+          itemBuilder: (context, index) {
+            final motion = MotionPreset.values[index];
+            return _MotionOptionCard(
+              motion: motion,
+              selected: selectedMotion == motion,
+              onTap: () => onChanged(motion),
+              compact: compact,
+            );
+          },
         );
       },
     );

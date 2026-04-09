@@ -358,7 +358,7 @@ class _MotionStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          flex: 6,
+          flex: 5,
           child: _CharacterPreviewCard(
             character: character,
             selectedMotion: selectedMotion,
@@ -605,15 +605,10 @@ class _MotionSelectionCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Scrollbar(
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            child: MotionSelector(
-              selectedMotion: selectedMotion,
-              onChanged: onMotionChanged,
-              compact: true,
-            ),
-          ),
+        child: MotionSelector(
+          selectedMotion: selectedMotion,
+          onChanged: onMotionChanged,
+          compact: true,
         ),
       ),
     );
