@@ -12,6 +12,10 @@ import 'capture_viewmodel.dart';
 import 'crop_screen_args.dart';
 
 const double _controlButtonSize = 46;
+const double _autoFramingPaddingRatioX = 0.05;
+const double _autoFramingPaddingRatioY = 0.08;
+const double _autoFramingPaddingMin = 0.02;
+const double _autoFramingBottomBias = 0.015;
 
 enum CropAspectPreset { free, square, ratio4x3, ratio16x9 }
 
@@ -376,17 +380,39 @@ class _CropScreenState extends ConsumerState<CropScreen> {
       return fallback;
     }
 
+    final expanded = _expandNormalizedRect(normalized);
     final candidate = Rect.fromLTRB(
-      imageRect.left + normalized.left * imageRect.width,
-      imageRect.top + normalized.top * imageRect.height,
-      imageRect.left + normalized.right * imageRect.width,
-      imageRect.top + normalized.bottom * imageRect.height,
+      imageRect.left + expanded.left * imageRect.width,
+      imageRect.top + expanded.top * imageRect.height,
+      imageRect.left + expanded.right * imageRect.width,
+      imageRect.top + expanded.bottom * imageRect.height,
     ).intersect(imageRect);
 
     if (candidate.width < 24 || candidate.height < 24) {
       return fallback;
     }
     return candidate;
+  }
+
+  Rect _expandNormalizedRect(Rect rect) {
+    final padX = (rect.width * _autoFramingPaddingRatioX).clamp(
+      _autoFramingPaddingMin,
+      0.4,
+    );
+    final padY = (rect.height * _autoFramingPaddingRatioY).clamp(
+      _autoFramingPaddingMin,
+      0.35,
+    );
+    if (padX <= 0 || padY <= 0) {
+      return rect;
+    }
+
+    return Rect.fromLTRB(
+      (rect.left - padX).clamp(0.0, 1.0),
+      (rect.top - padY).clamp(0.0, 1.0),
+      (rect.right + padX).clamp(0.0, 1.0),
+      (rect.bottom + padY + _autoFramingBottomBias).clamp(0.0, 1.0),
+    );
   }
 
   Rect _normalizeRect(Rect rect) {
