@@ -549,6 +549,7 @@ class _InteractivePlacedCharacterState
   bool _removeCompletionNotified = false;
   double _removeTranslateXEnd = 0.0;
   double _removeRotationEnd = 0.0;
+  Offset _lastGlobalDragPosition = Offset.zero;
 
   @override
   void initState() {
@@ -893,7 +894,7 @@ class _InteractivePlacedCharacterState
     }
     widget.onInteraction();
     widget.onBringToFront(widget.placed.instanceId);
-    _dragStartPosition = _stageRuntime.position;
+    _startDrag(details.globalPosition);
     _isDragging = true;
     setState(() {
       _stageRuntime = _stageMotionEngine.pauseForDrag(_stageRuntime);
@@ -911,8 +912,14 @@ class _InteractivePlacedCharacterState
       return;
     }
 
-    final nextX = _dragStartPosition.dx + details.delta.dx / base.width;
-    final nextY = _dragStartPosition.dy + details.delta.dy / base.height;
+    final delta = _toNormalizedStageDelta(
+      globalPosition: details.globalPosition,
+      stageSize: base,
+    );
+    _lastGlobalDragPosition = details.globalPosition;
+
+    final nextX = _dragStartPosition.dx + delta.dx;
+    final nextY = _dragStartPosition.dy + delta.dy;
     final nextRuntime = _stageMotionEngine.applyDragPosition(
       runtime: _stageRuntime,
       draggedPosition: Offset(nextX, nextY),
@@ -954,6 +961,24 @@ class _InteractivePlacedCharacterState
     await widget.onDelete(widget.placed.instanceId);
   }
 
+  void _startDrag(Offset globalPosition) {
+    _dragStartPosition = _stageRuntime.position;
+    _lastGlobalDragPosition = globalPosition;
+  }
+
+  Offset _toNormalizedStageDelta({
+    required Offset globalPosition,
+    required Size stageSize,
+  }) {
+    if (stageSize.width <= 0 || stageSize.height <= 0) {
+      return Offset.zero;
+    }
+    return Offset(
+      (globalPosition.dx - _lastGlobalDragPosition.dx) / stageSize.width,
+      (globalPosition.dy - _lastGlobalDragPosition.dy) / stageSize.height,
+    );
+  }
+
   void _resumeStageMotionFromDrag() {
     final resumedRuntime = _stageMotionEngine.resumeFromDrag(
       runtime: _stageRuntime,
@@ -975,6 +1000,7 @@ class _InteractivePlacedCharacterState
     }
 
     widget.onMove(widget.placed.instanceId, resumedRuntime.position);
+    _lastGlobalDragPosition = Offset.zero;
     _startObjectMotionAnimation();
   }
 

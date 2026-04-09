@@ -33,6 +33,11 @@
 
 ### 2026-04-09
 
+#### fix: normalize stage drag movement direction
+- 데굴데굴 포함 모든 무대 모션에서 손가락 움직임과 반대되는 드래그 반전을 제거했습니다.
+- 드래그 시작/갱신 좌표 변환을 전역 좌표 기반으로 정규화해 회전 상태와 관계없는 일관된 조작을 보장했습니다.
+- 버그 수정 기준으로 `versionName`을 `1.10.2`, `versionCode`를 `11002`로 상향했습니다.
+
 #### fix: keep stage bgm playing during interaction sfx
 - 캐릭터 등장/제거 효과음 재생 시 BGM이 중단되던 문제를 수정해 배경음이 지속 재생되도록 안정화했습니다.
 - BGM/SFX 재생 컨텍스트를 분리해 효과음이 배경음 위에 자연스럽게 겹쳐 출력되도록 조정했습니다.
