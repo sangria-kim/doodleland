@@ -33,6 +33,11 @@
 
 ### 2026-04-10
 
+#### feat: enhance gliding motion dynamics
+- 무대에서 글라이딩 모션 시점의 방향 전환과 속도 감쇠를 조정해 벽면 반사 후 속도 진동을 줄였습니다.
+- 모션 시작·종료 구간에서 경계 반응 임계값을 보정해 좌우 반복 이동의 잔향감을 안정화했습니다.
+- 기능 반영으로 `versionName`을 `1.12.0`, `versionCode`를 `11200`으로 상향합니다.
+
 #### feat: add alternating home action voice cues
 - 홈 화면의 `그림 만들기`와 `놀이 시작` 버튼에 번갈아 재생되는 음성 피드백을 추가합니다.
 - `assets/audio/main/`에 등록된 4개 음원을 버튼별 독립 카운터로 순환 사용해 동작 감지를 강화합니다.

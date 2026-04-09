@@ -493,9 +493,42 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
     return switch (motion) {
       MotionPreset.floating => const Duration(milliseconds: 2000),
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
-      MotionPreset.gliding => const Duration(milliseconds: 3000),
+      MotionPreset.gliding =>
+          Duration(milliseconds: 2500 + (widget.character.id % 400)),
       MotionPreset.rolling => const Duration(milliseconds: 2500),
     };
+  }
+
+  double _initialMotionOffset() {
+    final seed = (widget.character.id * 97) + widget.motion.index;
+    return (seed.abs() % 1000) / 1000.0;
+  }
+
+  double _previewCycle() {
+    return (_controller.value + _initialMotionOffset()) % 1.0;
+  }
+
+  double _glideProfile(double phase) {
+    final primaryWave = math.sin(phase);
+    final flutterWave = math.sin(phase * 2.4 + 0.35) * 0.26;
+    final diveWeight = primaryWave < 0
+        ? math.pow(-primaryWave, 1.35).toDouble() * 0.95
+        : 0.0;
+
+    return (primaryWave * 0.55 + flutterWave - diveWeight)
+        .clamp(-1.6, 1.05)
+        .toDouble();
+  }
+
+  double _glideRotation(double phase) {
+    final profile = _glideProfile(phase);
+    final nextProfile = _glideProfile(phase + 0.05);
+    final profileVelocity = nextProfile - profile;
+    final diveBias = profile < 0 ? 1.25 : 0.75;
+
+    return (math.cos(phase) * 0.12 + profileVelocity * 2.6 + profile * 0.06 * diveBias)
+        .clamp(-0.2, 0.2)
+        .toDouble();
   }
 
   @override
@@ -505,7 +538,7 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
         final boxSize = math.min(constraints.maxWidth, constraints.maxHeight);
         final floatingOffsetY = boxSize * 0.09;
         final bouncingOffsetY = boxSize * 0.16;
-        final glidingOffsetY = boxSize * 0.05;
+        final glidingOffsetY = boxSize * 0.09;
 
         return AnimatedBuilder(
           animation: _controller,
@@ -523,15 +556,15 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
             ),
           ),
           builder: (context, child) {
-            final phase = _controller.value * math.pi * 2;
+            final phase = _previewCycle() * math.pi * 2;
             final verticalOffset = switch (widget.motion) {
               MotionPreset.floating => math.sin(phase) * floatingOffsetY,
               MotionPreset.bouncing => -math.sin(phase).abs() * bouncingOffsetY,
-              MotionPreset.gliding => math.sin(phase) * glidingOffsetY,
+              MotionPreset.gliding => _glideProfile(phase) * glidingOffsetY,
               MotionPreset.rolling => 0.0,
             };
             final rotation = switch (widget.motion) {
-              MotionPreset.gliding => math.sin(phase) * 0.08,
+              MotionPreset.gliding => _glideRotation(phase),
               MotionPreset.rolling => phase,
               _ => 0.0,
             };

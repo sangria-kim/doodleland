@@ -536,6 +536,7 @@ class _InteractivePlacedCharacterState
   late final AnimationController _objectMotionController;
   late final Animation<double> _objectMotionPhase;
   late final Ticker _stageTicker;
+  late double _glidePhaseOffset;
 
   Offset _dragStartPosition = Offset.zero;
   bool _isDragging = false;
@@ -555,6 +556,7 @@ class _InteractivePlacedCharacterState
   void initState() {
     super.initState();
     _stageRuntime = widget.placed.stageRuntime;
+    _glidePhaseOffset = _initialGlidePhaseOffset();
 
     _entryController = AnimationController(
       vsync: this,
@@ -697,6 +699,7 @@ class _InteractivePlacedCharacterState
       _removeController.value = 0.0;
       _removeTranslateXEnd = 0.0;
       _removeRotationEnd = 0.0;
+      _glidePhaseOffset = _initialGlidePhaseOffset();
     }
     if (!oldWidget.shouldPlayEntrance && widget.shouldPlayEntrance) {
       _armEntranceIfNeeded(forceRestart: true);
@@ -748,9 +751,20 @@ class _InteractivePlacedCharacterState
     return switch (widget.placed.objectMotion) {
       MotionPreset.floating => const Duration(milliseconds: 2000),
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
-      MotionPreset.gliding => const Duration(milliseconds: 3000),
+      MotionPreset.gliding => Duration(
+          milliseconds: 2400 + (widget.placed.instanceId.hashCode.abs() % 450),
+        ),
       MotionPreset.rolling => const Duration(milliseconds: 2500),
     };
+  }
+
+  double _initialGlidePhaseOffset() {
+    final hashValue = widget.placed.instanceId.hashCode.abs();
+    return (hashValue % 1000) / 1000.0;
+  }
+
+  double _objectMotionCycle() {
+    return (_objectMotionPhase.value + _glidePhaseOffset) % 1.0;
   }
 
   void _armEntranceIfNeeded({bool forceRestart = false}) {
@@ -1013,29 +1027,55 @@ class _InteractivePlacedCharacterState
   }
 
   Offset _objectMotionOffset() {
-    final wave = math.sin(_objectMotionPhase.value * math.pi * 2);
+    final wave = math.sin(_objectMotionCycle() * math.pi * 2);
     final stageHeight = widget.stageSize.height <= 0
         ? 1.0
         : widget.stageSize.height;
     final floatingOffsetY = 20 / stageHeight;
     final bouncingOffsetY = 40 / stageHeight;
-    final glidingOffsetY = 12 / stageHeight;
+    final glidingOffsetY = 26 / stageHeight;
 
     return switch (widget.placed.objectMotion) {
       MotionPreset.floating => Offset(0.0, wave * floatingOffsetY),
       MotionPreset.bouncing => Offset(0.0, -wave.abs() * bouncingOffsetY),
-      MotionPreset.gliding => Offset(0.0, wave * glidingOffsetY),
+      MotionPreset.gliding => Offset(
+          0.0,
+          _glideProfile(_objectMotionCycle() * math.pi * 2) * glidingOffsetY,
+        ),
       MotionPreset.rolling => Offset.zero,
     };
   }
 
   double _objectMotionRotation() {
-    final cycle = _objectMotionPhase.value * math.pi * 2;
+    final cycle = _objectMotionCycle() * math.pi * 2;
     return switch (widget.placed.objectMotion) {
-      MotionPreset.gliding => math.sin(cycle) * 0.08,
+      MotionPreset.gliding => _glideRotation(cycle),
       MotionPreset.rolling => cycle,
       _ => 0,
     };
+  }
+
+  double _glideProfile(double phase) {
+    final primaryWave = math.sin(phase);
+    final flutterWave = math.sin(phase * 2.4 + 0.35) * 0.26;
+    final diveWeight = primaryWave < 0
+        ? math.pow(-primaryWave, 1.35).toDouble() * 0.95
+        : 0.0;
+
+    return (primaryWave * 0.55 + flutterWave - diveWeight)
+        .clamp(-1.6, 1.05)
+        .toDouble();
+  }
+
+  double _glideRotation(double cycle) {
+    final profile = _glideProfile(cycle);
+    final nextProfile = _glideProfile(cycle + 0.05);
+    final profileVelocity = nextProfile - profile;
+    final diveBias = profile < 0 ? 1.25 : 0.75;
+
+    return (math.cos(cycle) * 0.12 + profileVelocity * 2.6 + profile * 0.06 * diveBias)
+        .clamp(-0.2, 0.2)
+        .toDouble();
   }
 
   @override
