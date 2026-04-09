@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
-enum StageMotionPathType { horizontalPingPong }
+enum StageMotionPathType { horizontalPingPong, verticalLeafFall }
 
 enum StageMotionDirection { leftToRight, rightToLeft }
 

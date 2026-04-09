@@ -21,7 +21,10 @@ class PlaceCharacterUseCase {
     int? zIndex,
   }) async {
     final normalizedGroundY = groundY ?? 0.8;
-    final initialPosition = Offset(0.5, normalizedGroundY.clamp(0.0, 1.0));
+    final initialPosition = _initialPositionForMotion(
+      objectMotion: objectMotion,
+      normalizedGroundY: normalizedGroundY,
+    );
     final initialSpeed = StageMotionRuntimeState.randomSlowSpeed(_random);
 
     return PlacedCharacter(
@@ -33,7 +36,7 @@ class PlaceCharacterUseCase {
       sourceWidth: character.width,
       sourceHeight: character.height,
       objectMotion: objectMotion,
-      stageMotion: const StageMotion(),
+      stageMotion: _stageMotionFor(objectMotion),
       stageRuntime: StageMotionRuntimeState.initial(
         position: initialPosition,
         speed: initialSpeed,
@@ -42,6 +45,28 @@ class PlaceCharacterUseCase {
       scale: 1.0,
       zIndex: zIndex ?? 0,
     );
+  }
+
+  StageMotion _stageMotionFor(MotionPreset objectMotion) {
+    return switch (objectMotion) {
+      MotionPreset.fluttering => const StageMotion(
+          pathType: StageMotionPathType.verticalLeafFall,
+        ),
+      _ => const StageMotion(),
+    };
+  }
+
+  Offset _initialPositionForMotion({
+    required MotionPreset objectMotion,
+    required double normalizedGroundY,
+  }) {
+    return switch (objectMotion) {
+      MotionPreset.fluttering => Offset(
+          0.1 + _random.nextDouble() * 0.8,
+          -0.08,
+        ),
+      _ => Offset(0.5, normalizedGroundY.clamp(0.0, 1.0)),
+    };
   }
 }
 

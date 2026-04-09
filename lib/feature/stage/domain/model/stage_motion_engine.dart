@@ -26,6 +26,12 @@ class StageMotionEngine {
         objectSize: objectSize,
         delta: delta,
       ),
+      StageMotionPathType.verticalLeafFall => _tickVerticalLeafFall(
+        runtime: runtime,
+        stageSize: stageSize,
+        objectSize: objectSize,
+        delta: delta,
+      ),
     };
   }
 
@@ -112,6 +118,48 @@ class StageMotionEngine {
       direction: nextDirection,
       isFlippedHorizontally: runtime.isFlippedHorizontally,
     );
+  }
+
+  StageMotionRuntimeState _tickVerticalLeafFall({
+    required StageMotionRuntimeState runtime,
+    required Size stageSize,
+    required Size objectSize,
+    required Duration delta,
+  }) {
+    final safeHeight = math.max(stageSize.height, 1.0);
+    final deltaSeconds = delta.inMicroseconds / Duration.microsecondsPerSecond;
+    final normalizedDeltaY =
+        (basePixelsPerSecond * runtime.speed * deltaSeconds) / safeHeight;
+    final minY = _minLeafFallY(stageSize, objectSize);
+    final maxY = _maxLeafFallY(stageSize, objectSize);
+    final travelHeight = (maxY - minY).clamp(0.0001, 10.0);
+
+    final rawY = runtime.position.dy + normalizedDeltaY;
+    if (rawY >= maxY) {
+      final overflowY = (rawY - maxY) % travelHeight;
+      final nextY = minY + overflowY;
+      return runtime.copyWith(
+        position: Offset(runtime.position.dx, nextY),
+        isFlippedHorizontally: runtime.isFlippedHorizontally,
+      );
+    }
+
+    return runtime.copyWith(
+      position: Offset(runtime.position.dx, rawY),
+      isFlippedHorizontally: runtime.isFlippedHorizontally,
+    );
+  }
+
+  double _minLeafFallY(Size stageSize, Size objectSize) {
+    final safeHeight = math.max(stageSize.height, 1.0);
+    final normalizedHalfHeight = (objectSize.height / safeHeight) / 2;
+    return -(normalizedHalfHeight * 0.9);
+  }
+
+  double _maxLeafFallY(Size stageSize, Size objectSize) {
+    final safeHeight = math.max(stageSize.height, 1.0);
+    final normalizedHalfHeight = (objectSize.height / safeHeight) / 2;
+    return 1 + (normalizedHalfHeight * 2.0);
   }
 
   double _minX(Size stageSize, Size objectSize) {

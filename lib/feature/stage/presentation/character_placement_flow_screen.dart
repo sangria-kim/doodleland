@@ -495,6 +495,7 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
       MotionPreset.gliding =>
           Duration(milliseconds: 2500 + (widget.character.id % 400)),
+      MotionPreset.fluttering => const Duration(milliseconds: 2800),
       MotionPreset.rolling => const Duration(milliseconds: 2500),
     };
   }
@@ -539,6 +540,8 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
         final floatingOffsetY = boxSize * 0.09;
         final bouncingOffsetY = boxSize * 0.16;
         final glidingOffsetY = boxSize * 0.09;
+        final flutteringDropY = boxSize * 0.62;
+        final flutteringOffsetX = boxSize * 0.06;
 
         return AnimatedBuilder(
           animation: _controller,
@@ -557,20 +560,37 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
           ),
           builder: (context, child) {
             final phase = _previewCycle() * math.pi * 2;
+            final flutterWave = math.sin(phase);
+            final flutterWaveSecondary = math.sin(phase * 2);
+            final flutterWaveTertiary = math.sin(phase * 3);
             final verticalOffset = switch (widget.motion) {
               MotionPreset.floating => math.sin(phase) * floatingOffsetY,
               MotionPreset.bouncing => -math.sin(phase).abs() * bouncingOffsetY,
               MotionPreset.gliding => _glideProfile(phase) * glidingOffsetY,
+              MotionPreset.fluttering =>
+                flutteringDropY * (1 - math.cos(phase)) * 0.5 +
+                flutterWaveSecondary * (boxSize * 0.02),
               MotionPreset.rolling => 0.0,
+            };
+            final horizontalOffset = switch (widget.motion) {
+              MotionPreset.fluttering => math.sin(
+                    phase + _initialMotionOffset() * 0.9,
+                  ) *
+                  flutteringOffsetX +
+                  flutterWaveSecondary * (flutteringOffsetX * 0.36),
+              _ => 0.0,
             };
             final rotation = switch (widget.motion) {
               MotionPreset.gliding => _glideRotation(phase),
+              MotionPreset.fluttering =>
+                math.sin(phase + _initialMotionOffset() * 0.4) * 0.09 +
+                  flutterWaveTertiary * 0.025,
               MotionPreset.rolling => phase,
               _ => 0.0,
             };
 
             return Transform.translate(
-              offset: Offset(0, verticalOffset),
+              offset: Offset(horizontalOffset, verticalOffset),
               child: Transform.rotate(
                 angle: rotation,
                 child: child,

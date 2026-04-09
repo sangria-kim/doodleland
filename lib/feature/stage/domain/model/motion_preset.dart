@@ -1,4 +1,4 @@
-enum MotionPreset { floating, bouncing, gliding, rolling }
+enum MotionPreset { floating, bouncing, gliding, rolling, fluttering }
 
 extension MotionPresetText on MotionPreset {
   String get label {
@@ -7,6 +7,7 @@ extension MotionPresetText on MotionPreset {
       MotionPreset.bouncing => '통통 점프',
       MotionPreset.gliding => '씽씽 활공',
       MotionPreset.rolling => '데굴데굴',
+      MotionPreset.fluttering => '나풀나풀',
     };
   }
 
@@ -17,6 +18,8 @@ extension MotionPresetText on MotionPreset {
       MotionPreset.gliding =>
           '상승-급강하를 반복해 활공하는 비행체 같은 움직임',
       MotionPreset.rolling => '제자리에서 굴러가듯 회전하는 모션',
+      MotionPreset.fluttering =>
+          '위에서 천천히 떨어지며 좌우로 흔들리는 나풀나풀하는 움직임',
     };
   }
 }

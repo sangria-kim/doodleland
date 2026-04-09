@@ -159,5 +159,6 @@ IconData _iconForMotion(MotionPreset motion) {
     MotionPreset.bouncing => Icons.sports_basketball,
     MotionPreset.gliding => Icons.swap_horiz,
     MotionPreset.rolling => Icons.blur_circular,
+    MotionPreset.fluttering => Icons.grain,
   };
 }
