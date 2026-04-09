@@ -300,7 +300,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                         DecoratedBox(
                           decoration: overlayDecoration,
                           child: IconButton(
-                            onPressed: () => context.go('/stage/background'),
+                            onPressed: () => context.push('/stage/background'),
                             icon: const Icon(Icons.image),
                             color: Colors.white,
                             tooltip: '배경 바꾸기',

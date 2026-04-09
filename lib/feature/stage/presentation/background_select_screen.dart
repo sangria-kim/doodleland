@@ -13,7 +13,14 @@ class BackgroundSelectScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('배경 고르기')),
+      appBar: AppBar(
+        title: const Text('배경 고르기'),
+        leading: IconButton(
+          onPressed: () => _close(context),
+          icon: const Icon(Icons.arrow_back),
+          tooltip: '뒤로 가기',
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -37,6 +44,14 @@ class BackgroundSelectScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _close(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/stage');
   }
 
   void _handleBackgroundTap(
