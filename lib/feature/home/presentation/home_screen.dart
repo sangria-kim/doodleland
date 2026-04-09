@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/audio/stage_audio_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../library/presentation/library_viewmodel.dart';
 
@@ -80,7 +81,7 @@ class HomeScreen extends ConsumerWidget {
                                     icon: Icons.edit,
                                     buttonFontSize: buttonFont,
                                     iconSize: buttonIconSize,
-                                    onPressed: () => context.push('/capture'),
+                                    onPressed: () => _startCreate(context, ref),
                                   ),
                                 ),
                                 SizedBox(width: gap),
@@ -107,11 +108,11 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-            );
-          },
-        ),
-      ),
-    );
+                        );
+                      },
+                    ),
+                  ),
+                );
   }
 
   double _uiDensity(double screenHeight) {
@@ -154,6 +155,8 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _startStage(BuildContext context, WidgetRef ref) async {
+    await ref.read(stageAudioControllerProvider).playHomePlayButtonSfx();
+
     final viewModel = ref.read(libraryViewModelProvider.notifier);
     await viewModel.loadCharacters();
 
@@ -171,6 +174,16 @@ class HomeScreen extends ConsumerWidget {
     }
 
     context.push('/stage/background');
+  }
+
+  Future<void> _startCreate(BuildContext context, WidgetRef ref) async {
+    await ref.read(stageAudioControllerProvider).playHomeCreateButtonSfx();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    context.push('/capture');
   }
 }
 

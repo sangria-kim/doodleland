@@ -21,6 +21,8 @@ abstract class StageSfxPlayer {
 
   Future<void> playAsset(String assetPath);
 
+  Future<void> stop();
+
   Future<void> dispose();
 }
 
@@ -81,6 +83,11 @@ class AudioplayersStageSfxPlayer implements StageSfxPlayer {
   }
 
   @override
+  Future<void> stop() async {
+    await _player.stop();
+  }
+
+  @override
   Future<void> dispose() async {
     await _player.dispose();
   }
@@ -98,6 +105,10 @@ class StageAudioController {
 
   static const String _spawnSfxAsset = 'audio/sfx/sfx_spawn_pop.ogg';
   static const String _removeSfxAsset = 'audio/sfx/sfx_remove_swoosh.ogg';
+  static const String _homeCreateSfxAsset1 = 'audio/main/main_create_btn_01.m4a';
+  static const String _homeCreateSfxAsset2 = 'audio/main/main_create_btn_02.m4a';
+  static const String _homePlaySfxAsset1 = 'audio/main/main_play_btn_01.m4a';
+  static const String _homePlaySfxAsset2 = 'audio/main/main_play_btn_02.m4a';
   static final AudioContext _bgmAudioContext = AudioContextConfig(
     focus: AudioContextConfigFocus.gain,
     route: AudioContextConfigRoute.system,
@@ -115,6 +126,8 @@ class StageAudioController {
 
   final StageBgmPlayer _bgmPlayer;
   final StageSfxPlayer _sfxPlayer;
+  int _homeCreateSfxIndex = 0;
+  int _homePlaySfxIndex = 0;
 
   static AudioContext get bgmAudioContext => _bgmAudioContext;
   static AudioContext get sfxAudioContext => _sfxAudioContext;
@@ -183,11 +196,26 @@ class StageAudioController {
     await _playSfx(_removeSfxAsset);
   }
 
+  Future<void> playHomeCreateButtonSfx() async {
+    final index = _homeCreateSfxIndex % 2;
+    _homeCreateSfxIndex += 1;
+    final targetAsset = index == 0 ? _homeCreateSfxAsset1 : _homeCreateSfxAsset2;
+    await _playSfx(targetAsset);
+  }
+
+  Future<void> playHomePlayButtonSfx() async {
+    final index = _homePlaySfxIndex % 2;
+    _homePlaySfxIndex += 1;
+    final targetAsset = index == 0 ? _homePlaySfxAsset1 : _homePlaySfxAsset2;
+    await _playSfx(targetAsset);
+  }
+
   Future<void> _playSfx(String assetPath) async {
     if (_disposed) {
       return;
     }
     try {
+      await _sfxPlayer.stop();
       await _sfxPlayer.playAsset(assetPath);
     } catch (error, stackTrace) {
       debugPrint('[audio] sfx play failed: $error');
