@@ -47,14 +47,18 @@ void main() {
   ) async {
     final router = GoRouter(
       routes: [
-        GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const HomeScreen(),
+        ),
         GoRoute(
           path: '/capture',
-          builder: (_, __) => const Scaffold(body: Text('capture')),
+          builder: (context, state) => const Scaffold(body: Text('capture')),
         ),
         GoRoute(
           path: '/stage/background',
-          builder: (_, __) => const Scaffold(body: Text('stage background')),
+          builder: (context, state) =>
+              const Scaffold(body: Text('stage background')),
         ),
       ],
     );
@@ -66,9 +70,7 @@ void main() {
             (ref) => _FakeCharacterRepository(const []),
           ),
         ],
-        child: MaterialApp.router(
-          routerConfig: router,
-        ),
+        child: MaterialApp.router(routerConfig: router),
       ),
     );
 
@@ -83,14 +85,18 @@ void main() {
   ) async {
     final router = GoRouter(
       routes: [
-        GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const HomeScreen(),
+        ),
         GoRoute(
           path: '/capture',
-          builder: (_, __) => const Scaffold(body: Text('capture')),
+          builder: (context, state) => const Scaffold(body: Text('capture')),
         ),
         GoRoute(
           path: '/stage/background',
-          builder: (_, __) => const Scaffold(body: Text('stage background')),
+          builder: (context, state) =>
+              const Scaffold(body: Text('stage background')),
         ),
       ],
     );
@@ -113,9 +119,7 @@ void main() {
             ]),
           ),
         ],
-        child: MaterialApp.router(
-          routerConfig: router,
-        ),
+        child: MaterialApp.router(routerConfig: router),
       ),
     );
 

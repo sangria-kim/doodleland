@@ -19,9 +19,9 @@ class Characters extends Table {
 
 @DriftDatabase(tables: [Characters])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
+  AppDatabase() : super(_openConnection());
 
-  AppDatabase.connect(QueryExecutor executor) : super(executor);
+  AppDatabase.connect(super.e);
 
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {

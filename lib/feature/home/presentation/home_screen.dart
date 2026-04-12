@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +12,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final libraryState = ref.watch(libraryViewModelProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -21,13 +21,13 @@ class HomeScreen extends ConsumerWidget {
             final mediaQuery = MediaQuery.of(context);
             final titleFont = _responsiveTitleSize(constraints.maxHeight);
             final bodyFont = _responsiveBodySize(constraints.maxHeight);
-                    final gap = _responsiveGap(constraints.maxHeight);
-                    final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
-                    final buttonWidth = _responsiveButtonWidth(
-                      constraints.maxWidth,
-                      gap,
-                    );
-                    final buttonFont = _responsiveButtonFont(constraints.maxHeight);
+            final gap = _responsiveGap(constraints.maxHeight);
+            final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
+            final buttonWidth = _responsiveButtonWidth(
+              constraints.maxWidth,
+              gap,
+            );
+            final buttonFont = _responsiveButtonFont(constraints.maxHeight);
             final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
 
             return AnimatedPadding(
@@ -94,9 +94,7 @@ class HomeScreen extends ConsumerWidget {
                                     tonal: true,
                                     buttonFontSize: buttonFont,
                                     iconSize: buttonIconSize,
-                                    onPressed: libraryState.isLoading
-                                        ? null
-                                        : () => _startStage(context, ref),
+                                    onPressed: () => _startStage(context, ref),
                                   ),
                                 ),
                               ],
@@ -108,11 +106,11 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-                        );
-                      },
-                    ),
-                  ),
-                );
+            );
+          },
+        ),
+      ),
+    );
   }
 
   double _uiDensity(double screenHeight) {
@@ -155,7 +153,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _startStage(BuildContext context, WidgetRef ref) async {
-    await ref.read(stageAudioControllerProvider).playHomePlayButtonSfx();
+    unawaited(ref.read(stageAudioControllerProvider).playHomePlayButtonSfx());
 
     final viewModel = ref.read(libraryViewModelProvider.notifier);
     await viewModel.loadCharacters();
@@ -169,15 +167,15 @@ class HomeScreen extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('그림이 없어요. 먼저 그림을 만들어보세요.')));
-      context.push('/capture');
+      GoRouter.of(context).push('/capture');
       return;
     }
 
-    context.push('/stage/background');
+    GoRouter.of(context).push('/stage/background');
   }
 
   Future<void> _startCreate(BuildContext context, WidgetRef ref) async {
-    await ref.read(stageAudioControllerProvider).playHomeCreateButtonSfx();
+    unawaited(ref.read(stageAudioControllerProvider).playHomeCreateButtonSfx());
 
     if (!context.mounted) {
       return;
@@ -222,22 +220,25 @@ class _HomeActionButton extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: borderRadius,
-        splashColor: AppPalette.primary.withOpacity(0.16),
+        splashColor: AppPalette.primary.withValues(alpha: 0.16),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: borderRadius,
             color: isEnabled ? buttonBackground : disabledBackground,
             border: Border.all(
               color: isPrimary
-                  ? Colors.white.withOpacity(0.26)
-                  : Colors.white.withOpacity(0.30),
+                  ? Colors.white.withValues(alpha: 0.26)
+                  : Colors.white.withValues(alpha: 0.30),
               width: isPrimary ? 1.5 : 1.2,
             ),
             boxShadow: isEnabled
                 ? [
                     BoxShadow(
-                      color: (isPrimary ? AppPalette.primary : AppPalette.textSecondary)
-                          .withOpacity(0.26),
+                      color:
+                          (isPrimary
+                                  ? AppPalette.primary
+                                  : AppPalette.textSecondary)
+                              .withValues(alpha: 0.26),
                       blurRadius: 14,
                       spreadRadius: 0,
                       offset: const Offset(0, 8),
@@ -253,7 +254,9 @@ class _HomeActionButton extends StatelessWidget {
                 label: label,
                 buttonFontSize: buttonFontSize,
                 iconSize: iconSize,
-                color: buttonForeground.withOpacity(isEnabled ? 1 : 0.55),
+                color: buttonForeground.withValues(
+                  alpha: isEnabled ? 1 : 0.55,
+                ),
               ),
             ),
           ),

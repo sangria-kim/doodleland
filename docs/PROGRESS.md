@@ -33,6 +33,10 @@
 
 ### 2026-04-12
 
+#### fix: prevent home play action from stalling due to async sound playback
+- 홈 화면에서 `놀이 시작` 탭 후 음향 재생 대기로 인해 화면 이동이 멈추던 문제를 수정했습니다.
+- 홈/무대 진입 분기를 비동기 의존성 없이 실행해 라우트 이동이 항상 보장되도록 정리했습니다.
+
 #### feat: add character limit notification message on stage
 - 무대에 캐릭터 10개가 모두 배치됐을 때 추가 버튼을 누르면 "더 이상 그림을 추가할 수 없어요" 스낵바를 표시합니다.
 - 기존의 버튼 비활성화 방식에서 사용자 피드백이 가능한 방식으로 변경했습니다.
