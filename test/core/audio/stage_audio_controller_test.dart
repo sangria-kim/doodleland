@@ -166,4 +166,7 @@ class _FakeStageSfxPlayer implements StageSfxPlayer {
   Future<void> setVolume(double volume) async {
     this.volume = volume;
   }
+
+  @override
+  Future<void> stop() async {}
 }

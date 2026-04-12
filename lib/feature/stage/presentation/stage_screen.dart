@@ -382,12 +382,21 @@ class _StageScreenState extends ConsumerState<StageScreen> {
           child: Tooltip(
             message: state.isFull ? '무대가 꽉 찼어요!' : '그림 추가',
             child: FloatingActionButton(
-              onPressed: state.isFull
-                  ? null
-                  : () {
-                      _showControlsForAWhile();
-                      _openCharacterSelector(context);
-                    },
+              onPressed: () {
+                _showControlsForAWhile();
+                if (state.isFull) {
+                  ScaffoldMessenger.of(context)
+                    ..clearSnackBars()
+                    ..showSnackBar(
+                      const SnackBar(
+                        content: Text('더 이상 그림을 추가할 수 없어요'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  return;
+                }
+                _openCharacterSelector(context);
+              },
               child: const Icon(Icons.add),
             ),
           ),

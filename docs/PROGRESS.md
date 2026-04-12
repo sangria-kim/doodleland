@@ -31,6 +31,12 @@
 
 ## 📝 커밋 로그
 
+### 2026-04-12
+
+#### feat: add character limit notification message on stage
+- 무대에 캐릭터 10개가 모두 배치됐을 때 추가 버튼을 누르면 "더 이상 그림을 추가할 수 없어요" 스낵바를 표시합니다.
+- 기존의 버튼 비활성화 방식에서 사용자 피드백이 가능한 방식으로 변경했습니다.
+
 ### 2026-04-10
 
 #### feat: add napulnapul falling flutter motion
