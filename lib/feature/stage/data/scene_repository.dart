@@ -10,12 +10,10 @@ class SceneRepository {
   StageBackground get defaultBackground => defaultStageBackgrounds.first;
 
   StageBackground? findById(String id) {
-    return defaultStageBackgrounds
-        .cast<StageBackground?>()
-        .firstWhere(
-          (background) => background?.id == id,
-          orElse: () => null,
-        );
+    return defaultStageBackgrounds.cast<StageBackground?>().firstWhere(
+      (background) => background?.id == id,
+      orElse: () => null,
+    );
   }
 }
 

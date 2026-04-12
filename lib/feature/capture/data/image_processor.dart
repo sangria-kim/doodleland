@@ -21,9 +21,8 @@ class EditableImageData {
 }
 
 class ImageProcessor {
-  const ImageProcessor({
-    Future<Directory> Function()? temporaryDirectoryLoader,
-  }) : _temporaryDirectoryLoader = temporaryDirectoryLoader;
+  const ImageProcessor({Future<Directory> Function()? temporaryDirectoryLoader})
+    : _temporaryDirectoryLoader = temporaryDirectoryLoader;
 
   final Future<Directory> Function()? _temporaryDirectoryLoader;
 

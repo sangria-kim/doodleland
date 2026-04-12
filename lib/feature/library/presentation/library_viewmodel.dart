@@ -42,9 +42,9 @@ class LibraryViewModel extends StateNotifier<LibraryState> {
   LibraryViewModel({
     required GetCharactersUseCase getCharactersUseCase,
     required DeleteCharacterUseCase deleteCharacterUseCase,
-  })  : _getCharactersUseCase = getCharactersUseCase,
-        _deleteCharacterUseCase = deleteCharacterUseCase,
-        super(const LibraryState());
+  }) : _getCharactersUseCase = getCharactersUseCase,
+       _deleteCharacterUseCase = deleteCharacterUseCase,
+       super(const LibraryState());
 
   final GetCharactersUseCase _getCharactersUseCase;
   final DeleteCharacterUseCase _deleteCharacterUseCase;
@@ -77,7 +77,10 @@ class LibraryViewModel extends StateNotifier<LibraryState> {
     if (state.deletingCharacterId != null) {
       return false;
     }
-    state = state.copyWith(deletingCharacterId: character.id, errorMessage: null);
+    state = state.copyWith(
+      deletingCharacterId: character.id,
+      errorMessage: null,
+    );
     try {
       final deleted = await _deleteCharacterUseCase(character);
       if (!deleted) {
@@ -91,7 +94,11 @@ class LibraryViewModel extends StateNotifier<LibraryState> {
       final remaining = state.characters
           .where((item) => item.id != character.id)
           .toList(growable: false);
-      state = state.copyWith(isLoading: false, characters: remaining, deletingCharacterId: null);
+      state = state.copyWith(
+        isLoading: false,
+        characters: remaining,
+        deletingCharacterId: null,
+      );
       return true;
     } catch (error, stackTrace) {
       state = state.copyWith(
@@ -108,8 +115,8 @@ class LibraryViewModel extends StateNotifier<LibraryState> {
 
 final libraryViewModelProvider =
     StateNotifierProvider<LibraryViewModel, LibraryState>(
-  (ref) => LibraryViewModel(
-    getCharactersUseCase: ref.watch(getCharactersUseCaseProvider),
-    deleteCharacterUseCase: ref.watch(deleteCharacterUseCaseProvider),
-  ),
-);
+      (ref) => LibraryViewModel(
+        getCharactersUseCase: ref.watch(getCharactersUseCaseProvider),
+        deleteCharacterUseCase: ref.watch(deleteCharacterUseCaseProvider),
+      ),
+    );

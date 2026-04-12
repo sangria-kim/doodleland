@@ -70,7 +70,10 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppPalette.primary,
           foregroundColor: AppPalette.onPrimary,
-          minimumSize: const Size(AppSpacing.controlWidth, AppSpacing.controlHeight),
+          minimumSize: const Size(
+            AppSpacing.controlWidth,
+            AppSpacing.controlHeight,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.card),
           ),

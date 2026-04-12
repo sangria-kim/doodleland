@@ -9,10 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import 'library_viewmodel.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
-  const LibraryScreen({
-    super.key,
-    this.onCharacterSelected,
-  });
+  const LibraryScreen({super.key, this.onCharacterSelected});
 
   final ValueChanged<Character>? onCharacterSelected;
 
@@ -53,12 +50,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     subtitle: Text(state.errorMessage!),
                     trailing: IconButton(
                       icon: const Icon(Icons.refresh),
-                      onPressed:
-                          state.isLoading
-                              ? null
-                              : () => ref
-                                  .read(libraryViewModelProvider.notifier)
-                                  .loadCharacters(),
+                      onPressed: state.isLoading
+                          ? null
+                          : () => ref
+                                .read(libraryViewModelProvider.notifier)
+                                .loadCharacters(),
                     ),
                   ),
                 ),
@@ -67,8 +63,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               Expanded(
                 child: _LibraryContent(
                   state: state,
-                  onRefresh:
-                      () => ref.read(libraryViewModelProvider.notifier).loadCharacters(),
+                  onRefresh: () => ref
+                      .read(libraryViewModelProvider.notifier)
+                      .loadCharacters(),
                   screen: this,
                 ),
               ),
@@ -104,9 +101,9 @@ class _LibraryContent extends StatelessWidget {
           children: [
             Text(
               '아직 그림이 없어요! 그림을 만들어볼까요?',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.grey[700],
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -150,46 +147,47 @@ class _LibraryContent extends StatelessWidget {
       return;
     }
 
-    ScaffoldMessenger.of(screen.context).showSnackBar(
-      const SnackBar(content: Text('현재는 목록 보기만 지원합니다.')),
-    );
+    ScaffoldMessenger.of(
+      screen.context,
+    ).showSnackBar(const SnackBar(content: Text('현재는 목록 보기만 지원합니다.')));
   }
 
   Future<void> _handleDelete(Character character) async {
+    final screenContext = screen.context;
+    final scaffoldMessenger = ScaffoldMessenger.of(screenContext);
+
     final confirmed = await showDialog<bool>(
-      context: screen.context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('그림 삭제'),
-            content: Text('${character.name}을(를) 삭제할까요?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('취소'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('삭제'),
-              ),
-            ],
+      context: screenContext,
+      builder: (context) => AlertDialog(
+        title: const Text('그림 삭제'),
+        content: Text('${character.name}을(를) 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
           ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
     );
 
-    if (confirmed != true || !screen.context.mounted) {
+    if (!screen.mounted || confirmed != true) {
       return;
     }
 
     final isDeleted = await screen.ref
         .read(libraryViewModelProvider.notifier)
         .deleteCharacter(character);
-    if (!screen.context.mounted) {
+
+    if (!screen.mounted) {
       return;
     }
 
     final message = isDeleted ? '삭제했습니다.' : '삭제에 실패했습니다.';
-    ScaffoldMessenger.of(screen.context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    scaffoldMessenger.showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -265,7 +263,12 @@ class _CharacterCard extends StatelessWidget {
                       child: Image.file(
                         File(character.thumbnailPath),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, _, __) => const Icon(Icons.image),
+                        errorBuilder: (
+                          context,
+                          error,
+                          stackTrace,
+                        ) =>
+                            const Icon(Icons.image),
                       ),
                     ),
                   ),
@@ -281,14 +284,9 @@ class _CharacterCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.black87,
-                        shadows: const [
-                          Shadow(
-                            color: Colors.white,
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
+                    color: Colors.black87,
+                    shadows: const [Shadow(color: Colors.white, blurRadius: 2)],
+                  ),
                 ),
               ),
               if (isDeleting)

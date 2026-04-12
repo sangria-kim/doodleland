@@ -32,7 +32,9 @@ class CharacterRepositoryImpl implements CharacterRepository {
   Future<Character> getCharacterById(int id) {
     return _dao
         .getCharacterById(id)
-        .then((character) => character ?? (throw StateError('character not found')));
+        .then(
+          (character) => character ?? (throw StateError('character not found')),
+        );
   }
 
   @override
@@ -43,15 +45,14 @@ class CharacterRepositoryImpl implements CharacterRepository {
     required String thumbnailPath,
     required int width,
     required int height,
-  }) =>
-      _dao.insertCharacter(
-        name: name,
-        originalImagePath: originalImagePath,
-        transparentImagePath: transparentImagePath,
-        thumbnailPath: thumbnailPath,
-        width: width,
-        height: height,
-      );
+  }) => _dao.insertCharacter(
+    name: name,
+    originalImagePath: originalImagePath,
+    transparentImagePath: transparentImagePath,
+    thumbnailPath: thumbnailPath,
+    width: width,
+    height: height,
+  );
 
   @override
   Future<bool> removeCharacter(int id) => _dao.deleteCharacter(id);

@@ -9,7 +9,9 @@ void main() {
   late Directory tempDirectory;
 
   setUp(() async {
-    tempDirectory = await Directory.systemTemp.createTemp('image-processor-test');
+    tempDirectory = await Directory.systemTemp.createTemp(
+      'image-processor-test',
+    );
   });
 
   tearDown(() async {

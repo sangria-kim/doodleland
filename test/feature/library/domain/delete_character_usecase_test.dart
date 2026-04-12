@@ -16,7 +16,8 @@ class FakeCharacterRepository implements CharacterRepository {
   }
 
   @override
-  Future<List<Character>> getCharacters() async => _characters.values.toList(growable: false);
+  Future<List<Character>> getCharacters() async =>
+      _characters.values.toList(growable: false);
 
   @override
   Future<Character> getCharacterById(int id) async => _characters[id]!;
@@ -46,7 +47,9 @@ void main() {
   late Directory tempDirectory;
 
   setUp(() async {
-    tempDirectory = await Directory.systemTemp.createTemp('delete-character-usecase-test');
+    tempDirectory = await Directory.systemTemp.createTemp(
+      'delete-character-usecase-test',
+    );
   });
 
   tearDown(() async {
@@ -55,7 +58,7 @@ void main() {
     }
   });
 
-  Future<Character> _makeCharacter(int id) async {
+  Future<Character> makeCharacter(int id) async {
     final original = File('${tempDirectory.path}/original_$id.png');
     final transparent = File('${tempDirectory.path}/transparent_$id.png');
     final thumbnail = File('${tempDirectory.path}/thumbnail_$id.png');
@@ -78,7 +81,7 @@ void main() {
   test('deletes related files when repository delete succeeds', () async {
     final repository = FakeCharacterRepository();
     final useCase = DeleteCharacterUseCase(characterRepository: repository);
-    final character = await _makeCharacter(1);
+    final character = await makeCharacter(1);
     repository.seed(character);
 
     final isDeleted = await useCase.call(character);
@@ -92,7 +95,7 @@ void main() {
   test('returns false and keeps files when repository delete fails', () async {
     final repository = FakeCharacterRepository()..shouldDelete = false;
     final useCase = DeleteCharacterUseCase(characterRepository: repository);
-    final character = await _makeCharacter(2);
+    final character = await makeCharacter(2);
     repository.seed(character);
 
     final isDeleted = await useCase.call(character);

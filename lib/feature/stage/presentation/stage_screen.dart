@@ -764,8 +764,8 @@ class _InteractivePlacedCharacterState
       MotionPreset.floating => const Duration(milliseconds: 2000),
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
       MotionPreset.gliding => Duration(
-          milliseconds: 2400 + (widget.placed.instanceId.hashCode.abs() % 450),
-        ),
+        milliseconds: 2400 + (widget.placed.instanceId.hashCode.abs() % 450),
+      ),
       MotionPreset.fluttering => const Duration(milliseconds: 2800),
       MotionPreset.rolling => const Duration(milliseconds: 2500),
     };
@@ -1063,16 +1063,16 @@ class _InteractivePlacedCharacterState
       MotionPreset.floating => Offset(0.0, wave * floatingOffsetY),
       MotionPreset.bouncing => Offset(0.0, -wave.abs() * bouncingOffsetY),
       MotionPreset.gliding => Offset(
-          0.0,
-          _glideProfile(_objectMotionCycle() * math.pi * 2) * glidingOffsetY,
-        ),
+        0.0,
+        _glideProfile(_objectMotionCycle() * math.pi * 2) * glidingOffsetY,
+      ),
       MotionPreset.fluttering => Offset(
-          flutterWave * flutteringOffsetX +
-              flutterWaveSecondary * (flutteringOffsetX * 0.34),
-          flutterWave * flutteringOffsetY * 0.55 +
-              flutterWaveSecondary * (flutteringOffsetY * 0.18) +
-              flutterWaveTertiary * 0.004,
-        ),
+        flutterWave * flutteringOffsetX +
+            flutterWaveSecondary * (flutteringOffsetX * 0.34),
+        flutterWave * flutteringOffsetY * 0.55 +
+            flutterWaveSecondary * (flutteringOffsetY * 0.18) +
+            flutterWaveTertiary * 0.004,
+      ),
       MotionPreset.rolling => Offset.zero,
     };
   }
@@ -1082,8 +1082,8 @@ class _InteractivePlacedCharacterState
     return switch (widget.placed.objectMotion) {
       MotionPreset.gliding => _glideRotation(cycle),
       MotionPreset.fluttering =>
-          math.sin(cycle + _flutterPhaseOffset) * 0.06 +
-          math.sin(cycle * 2 + _flutterPhaseOffset * 0.7) * 0.02,
+        math.sin(cycle + _flutterPhaseOffset) * 0.06 +
+            math.sin(cycle * 2 + _flutterPhaseOffset * 0.7) * 0.02,
       MotionPreset.rolling => cycle,
       _ => 0,
     };
@@ -1094,7 +1094,9 @@ class _InteractivePlacedCharacterState
       return 1.0;
     }
 
-    final stageHeight = widget.stageSize.height <= 0 ? 1.0 : widget.stageSize.height;
+    final stageHeight = widget.stageSize.height <= 0
+        ? 1.0
+        : widget.stageSize.height;
     final objectHeight = _characterDisplaySize(
       widget.placed,
       includePlacedScale: true,
@@ -1116,8 +1118,10 @@ class _InteractivePlacedCharacterState
       return 0.0;
     }
 
-    return (1.0 - (_stageRuntime.position.dy - fadeStart) / fadeRange)
-        .clamp(0.0, 1.0);
+    return (1.0 - (_stageRuntime.position.dy - fadeStart) / fadeRange).clamp(
+      0.0,
+      1.0,
+    );
   }
 
   double _glideProfile(double phase) {
@@ -1138,7 +1142,9 @@ class _InteractivePlacedCharacterState
     final profileVelocity = nextProfile - profile;
     final diveBias = profile < 0 ? 1.25 : 0.75;
 
-    return (math.cos(cycle) * 0.12 + profileVelocity * 2.6 + profile * 0.06 * diveBias)
+    return (math.cos(cycle) * 0.12 +
+            profileVelocity * 2.6 +
+            profile * 0.06 * diveBias)
         .clamp(-0.2, 0.2)
         .toDouble();
   }

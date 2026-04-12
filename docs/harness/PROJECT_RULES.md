@@ -50,12 +50,12 @@ Drift 테이블 `Characters`에 매핑되는 영속 모델.
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| id | String | 'forest', 'sky', 'ocean', 'starry_night', 'candy_land' |
+| id | String | 'forest', 'sky', 'ocean', 'starry_night', 'candy_land', 'pororo_playground' |
 | name | String | 한국어 이름 |
 | assetPath | String | assets 경로 |
 | groundY | double | 지면 Y좌표 (0.0~1.0 정규화) |
 
-5종 배경. 파일: `lib/feature/stage/domain/model/stage_background.dart`
+6종 배경. 파일: `lib/feature/stage/domain/model/stage_background.dart`
 
 ### 1.4 MotionPreset / TouchPreset
 

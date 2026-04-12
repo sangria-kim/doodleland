@@ -5,7 +5,7 @@ import '../data/character_repository.dart';
 
 class GetCharactersUseCase {
   const GetCharactersUseCase({required CharacterRepository characterRepository})
-      : _characterRepository = characterRepository;
+    : _characterRepository = characterRepository;
 
   final CharacterRepository _characterRepository;
 

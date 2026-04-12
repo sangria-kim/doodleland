@@ -50,8 +50,8 @@ class PlaceCharacterUseCase {
   StageMotion _stageMotionFor(MotionPreset objectMotion) {
     return switch (objectMotion) {
       MotionPreset.fluttering => const StageMotion(
-          pathType: StageMotionPathType.verticalLeafFall,
-        ),
+        pathType: StageMotionPathType.verticalLeafFall,
+      ),
       _ => const StageMotion(),
     };
   }
@@ -62,9 +62,9 @@ class PlaceCharacterUseCase {
   }) {
     return switch (objectMotion) {
       MotionPreset.fluttering => Offset(
-          0.1 + _random.nextDouble() * 0.8,
-          -0.08,
-        ),
+        0.1 + _random.nextDouble() * 0.8,
+        -0.08,
+      ),
       _ => Offset(0.5, normalizedGroundY.clamp(0.0, 1.0)),
     };
   }

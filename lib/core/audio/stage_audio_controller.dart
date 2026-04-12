@@ -105,8 +105,10 @@ class StageAudioController {
 
   static const String _spawnSfxAsset = 'audio/sfx/sfx_spawn_pop.ogg';
   static const String _removeSfxAsset = 'audio/sfx/sfx_remove_swoosh.ogg';
-  static const String _homeCreateSfxAsset1 = 'audio/main/main_create_btn_01.m4a';
-  static const String _homeCreateSfxAsset2 = 'audio/main/main_create_btn_02.m4a';
+  static const String _homeCreateSfxAsset1 =
+      'audio/main/main_create_btn_01.m4a';
+  static const String _homeCreateSfxAsset2 =
+      'audio/main/main_create_btn_02.m4a';
   static const String _homePlaySfxAsset1 = 'audio/main/main_play_btn_01.m4a';
   static const String _homePlaySfxAsset2 = 'audio/main/main_play_btn_02.m4a';
   static final AudioContext _bgmAudioContext = AudioContextConfig(
@@ -199,7 +201,9 @@ class StageAudioController {
   Future<void> playHomeCreateButtonSfx() async {
     final index = _homeCreateSfxIndex % 2;
     _homeCreateSfxIndex += 1;
-    final targetAsset = index == 0 ? _homeCreateSfxAsset1 : _homeCreateSfxAsset2;
+    final targetAsset = index == 0
+        ? _homeCreateSfxAsset1
+        : _homeCreateSfxAsset2;
     await _playSfx(targetAsset);
   }
 

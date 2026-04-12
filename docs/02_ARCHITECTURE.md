@@ -114,6 +114,7 @@ class StageBackground {
 - `ocean` / `바다` / `0.81`
 - `starry_night` / `별빛 밤` / `0.83`
 - `candy_land` / `캔디 랜드` / `0.88`
+- `pororo_playground` / `뽀로로 놀이터` / `0.82`
 
 ### PlacedCharacter
 ```dart

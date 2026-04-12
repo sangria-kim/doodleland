@@ -1,3 +1,1 @@
-enum TouchPreset {
-  defaultBounce,
-}
+enum TouchPreset { defaultBounce }

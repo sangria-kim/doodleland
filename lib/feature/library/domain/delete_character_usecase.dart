@@ -6,8 +6,9 @@ import '../../../core/database/app_database.dart';
 import '../data/character_repository.dart';
 
 class DeleteCharacterUseCase {
-  const DeleteCharacterUseCase({required CharacterRepository characterRepository})
-      : _characterRepository = characterRepository;
+  const DeleteCharacterUseCase({
+    required CharacterRepository characterRepository,
+  }) : _characterRepository = characterRepository;
 
   final CharacterRepository _characterRepository;
 

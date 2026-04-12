@@ -42,9 +42,9 @@ class CharacterDao extends DatabaseAccessor<AppDatabase> {
   }
 
   Future<bool> deleteCharacter(int id) async {
-    final rows = await (_database.delete(_database.characters)
-          ..where((character) => character.id.equals(id)))
-        .go();
+    final rows = await (_database.delete(
+      _database.characters,
+    )..where((character) => character.id.equals(id))).go();
     return rows > 0;
   }
 }
@@ -53,6 +53,4 @@ final characterDaoProvider = Provider<CharacterDao>(
   (ref) => CharacterDao(ref.watch(appDatabaseProvider)),
 );
 
-final appDatabaseProvider = Provider<AppDatabase>(
-  (ref) => AppDatabase(),
-);
+final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase());

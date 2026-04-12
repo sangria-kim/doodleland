@@ -13,11 +13,7 @@ import 'package:doodleland/app.dart';
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: DoodlelandApp(),
-      ),
-    );
+    await tester.pumpWidget(const ProviderScope(child: DoodlelandApp()));
 
     // Verify that the new home screen is rendered.
     expect(find.text('그림놀이터'), findsOneWidget);

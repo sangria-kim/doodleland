@@ -6,14 +6,20 @@ void main() {
   final mapper = PermissionResultMapper();
 
   test('granted status becomes successful result', () async {
-    final result = mapper.fromStatus(PermissionStatus.granted, permissionName: 'camera');
+    final result = mapper.fromStatus(
+      PermissionStatus.granted,
+      permissionName: 'camera',
+    );
 
     expect(result.isGranted, isTrue);
     expect(result.failure, isNull);
   });
 
   test('denied status becomes retryable failure', () async {
-    final result = mapper.fromStatus(PermissionStatus.denied, permissionName: 'camera');
+    final result = mapper.fromStatus(
+      PermissionStatus.denied,
+      permissionName: 'camera',
+    );
 
     expect(result.isGranted, isFalse);
     expect(result.failure?.type, PermissionFailureType.denied);

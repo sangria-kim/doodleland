@@ -50,4 +50,38 @@ void main() {
     expect(selectedBackground?.id, equals(target.id));
     expect(selectedBackground?.groundY, equals(target.groundY));
   });
+
+  testWidgets('pororo playground is listed and selectable', (
+    WidgetTester tester,
+  ) async {
+    StageBackground? selectedBackground;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BackgroundSelectScreen(
+            onBackgroundSelected: (background) =>
+                selectedBackground = background,
+          ),
+        ),
+      ),
+    );
+
+    const pororoId = 'pororo_playground';
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('background-tile-$pororoId')),
+      250,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('background-tile-$pororoId')));
+    await tester.pumpAndSettle();
+
+    expect(selectedBackground?.id, equals(pororoId));
+    expect(selectedBackground?.name, equals('뽀로로 놀이터'));
+    expect(
+      selectedBackground?.assetPath,
+      equals('assets/backgrounds/bg_pororo.jpg'),
+    );
+  });
 }

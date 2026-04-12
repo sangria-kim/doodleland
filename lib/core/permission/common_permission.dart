@@ -9,10 +9,7 @@ enum PermissionFailureType {
 }
 
 class PermissionFailure {
-  const PermissionFailure({
-    required this.type,
-    required this.message,
-  });
+  const PermissionFailure({required this.type, required this.message});
 
   final PermissionFailureType type;
   final String message;
@@ -21,10 +18,7 @@ class PermissionFailure {
 }
 
 class PermissionResult {
-  const PermissionResult({
-    required this.isGranted,
-    this.failure,
-  });
+  const PermissionResult({required this.isGranted, this.failure});
 
   final bool isGranted;
   final PermissionFailure? failure;
@@ -41,7 +35,10 @@ class PermissionResult {
 class PermissionResultMapper {
   const PermissionResultMapper();
 
-  PermissionResult fromStatus(PermissionStatus status, {String? permissionName}) {
+  PermissionResult fromStatus(
+    PermissionStatus status, {
+    String? permissionName,
+  }) {
     if (status.isGranted) {
       return PermissionResult.granted();
     }
@@ -57,7 +54,8 @@ class PermissionResultMapper {
       return PermissionResult.denied(
         PermissionFailure(
           type: PermissionFailureType.deniedPermanently,
-          message: '${permissionName ?? 'permission'} 권한이 영구적으로 거부되었습니다. 설정에서 허용해 주세요.',
+          message:
+              '${permissionName ?? 'permission'} 권한이 영구적으로 거부되었습니다. 설정에서 허용해 주세요.',
         ),
       );
     }

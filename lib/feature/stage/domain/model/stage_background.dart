@@ -46,4 +46,10 @@ const List<StageBackground> defaultStageBackgrounds = [
     assetPath: 'assets/backgrounds/bg_candy_land.jpg',
     groundY: 0.88,
   ),
+  StageBackground(
+    id: 'pororo_playground',
+    name: '뽀로로 놀이터',
+    assetPath: 'assets/backgrounds/bg_pororo.jpg',
+    groundY: 0.82,
+  ),
 ];

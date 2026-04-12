@@ -76,6 +76,7 @@ flutter:
     - assets/backgrounds/bg_ocean.jpg
     - assets/backgrounds/bg_starry_night.jpg
     - assets/backgrounds/bg_candy_land.jpg
+    - assets/backgrounds/bg_pororo.jpg
     - assets/audio/main/
     - assets/audio/bgm/
     - assets/audio/sfx/

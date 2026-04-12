@@ -288,7 +288,9 @@ class _CharacterGridCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(
-              color: selected ? colorScheme.primary : colorScheme.outlineVariant,
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
               width: selected ? 2 : 1,
             ),
           ),
@@ -401,7 +403,10 @@ class _CharacterPreviewCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final previewSize = (constraints.maxWidth * 0.62).clamp(112.0, 240.0);
+            final previewSize = (constraints.maxWidth * 0.62).clamp(
+              112.0,
+              240.0,
+            );
 
             return Column(
               children: [
@@ -410,19 +415,19 @@ class _CharacterPreviewCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                      width: previewSize,
-                      height: previewSize,
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: _AnimatedCharacterPreview(
-                          character: character,
-                          motion: selectedMotion,
+                        width: previewSize,
+                        height: previewSize,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: _AnimatedCharacterPreview(
+                            character: character,
+                            motion: selectedMotion,
+                          ),
                         ),
                       ),
-                    ),
                     ),
                   ),
                 ),
@@ -493,8 +498,9 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
     return switch (motion) {
       MotionPreset.floating => const Duration(milliseconds: 2000),
       MotionPreset.bouncing => const Duration(milliseconds: 1200),
-      MotionPreset.gliding =>
-          Duration(milliseconds: 2500 + (widget.character.id % 400)),
+      MotionPreset.gliding => Duration(
+        milliseconds: 2500 + (widget.character.id % 400),
+      ),
       MotionPreset.fluttering => const Duration(milliseconds: 2800),
       MotionPreset.rolling => const Duration(milliseconds: 2500),
     };
@@ -527,7 +533,9 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
     final profileVelocity = nextProfile - profile;
     final diveBias = profile < 0 ? 1.25 : 0.75;
 
-    return (math.cos(phase) * 0.12 + profileVelocity * 2.6 + profile * 0.06 * diveBias)
+    return (math.cos(phase) * 0.12 +
+            profileVelocity * 2.6 +
+            profile * 0.06 * diveBias)
         .clamp(-0.2, 0.2)
         .toDouble();
   }
@@ -558,43 +566,38 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
               ),
             ),
           ),
-          builder: (context, child) {
-            final phase = _previewCycle() * math.pi * 2;
-            final flutterWave = math.sin(phase);
-            final flutterWaveSecondary = math.sin(phase * 2);
-            final flutterWaveTertiary = math.sin(phase * 3);
-            final verticalOffset = switch (widget.motion) {
+      builder: (context, child) {
+        final phase = _previewCycle() * math.pi * 2;
+        final flutterWaveSecondary = math.sin(phase * 2);
+        final flutterWaveTertiary = math.sin(phase * 3);
+        final verticalOffset = switch (widget.motion) {
               MotionPreset.floating => math.sin(phase) * floatingOffsetY,
               MotionPreset.bouncing => -math.sin(phase).abs() * bouncingOffsetY,
               MotionPreset.gliding => _glideProfile(phase) * glidingOffsetY,
               MotionPreset.fluttering =>
                 flutteringDropY * (1 - math.cos(phase)) * 0.5 +
-                flutterWaveSecondary * (boxSize * 0.02),
+                    flutterWaveSecondary * (boxSize * 0.02),
               MotionPreset.rolling => 0.0,
             };
             final horizontalOffset = switch (widget.motion) {
-              MotionPreset.fluttering => math.sin(
-                    phase + _initialMotionOffset() * 0.9,
-                  ) *
-                  flutteringOffsetX +
-                  flutterWaveSecondary * (flutteringOffsetX * 0.36),
+              MotionPreset.fluttering =>
+                math.sin(phase + _initialMotionOffset() * 0.9) *
+                        flutteringOffsetX +
+                    flutterWaveSecondary * (flutteringOffsetX * 0.36),
               _ => 0.0,
             };
             final rotation = switch (widget.motion) {
               MotionPreset.gliding => _glideRotation(phase),
               MotionPreset.fluttering =>
                 math.sin(phase + _initialMotionOffset() * 0.4) * 0.09 +
-                  flutterWaveTertiary * 0.025,
+                    flutterWaveTertiary * 0.025,
               MotionPreset.rolling => phase,
               _ => 0.0,
             };
 
             return Transform.translate(
               offset: Offset(horizontalOffset, verticalOffset),
-              child: Transform.rotate(
-                angle: rotation,
-                child: child,
-              ),
+              child: Transform.rotate(angle: rotation, child: child),
             );
           },
         );
