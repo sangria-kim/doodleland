@@ -240,3 +240,35 @@ flutter test                  # 전체 유닛 테스트
 flutter analyze               # 정적 분석
 dart fix --apply              # 자동 수정
 ```
+
+---
+
+## [7] 하네스 (Automation Harness)
+
+### 개요
+4단계 자동 루프: planner → implementer → reviewer → fixer
+역할별 프롬프트와 규칙은 `docs/harness/` 아래에 위치한다.
+
+### 문서 구조
+- `docs/harness/PROJECT_RULES.md` — 도메인 모델, 상태 머신, 인터랙션 규칙, 리뷰/테스트 가이드
+- `docs/harness/prompts/planner.md` — 계획 역할
+- `docs/harness/prompts/implementer.md` — 구현 역할
+- `docs/harness/prompts/reviewer.md` — 검토 역할
+- `docs/harness/prompts/fixer.md` — 수정 역할
+- `docs/harness/review_schema.json` — 리뷰 출력 포맷
+- `scripts/harness_runner.py` — 자동 루프 실행기
+
+### 실행 방법
+```bash
+python scripts/harness_runner.py --agent claude --task "작업 설명"
+python scripts/harness_runner.py --agent codex --task "작업 설명"
+python scripts/harness_runner.py --agent claude --task "작업 설명" --steps planner
+python scripts/harness_runner.py --agent claude --task "작업 설명" --dry-run
+```
+
+### 실행 규칙
+- 하네스 역할로 동작할 때는 해당 프롬프트의 Constraints를 최우선으로 따른다
+- 품질 게이트(format, analyze, test)를 통과하지 못하면 다음 단계로 진행하지 않는다
+- 코드 변경 시 기존 `[6] Flutter / Dart 개발 컨벤션`을 동일하게 준수한다
+- must_fix가 0이 될 때까지 fixer → reviewer 루프를 반복한다 (최대 2회)
+- 동일 이슈가 반복되면 루프를 중단한다

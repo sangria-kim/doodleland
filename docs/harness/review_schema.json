@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DoodleLand Harness Review Output",
+  "description": "reviewer 역할이 출력하는 코드 리뷰 결과 포맷",
+  "type": "object",
+  "required": ["summary", "must_fix", "should_fix", "test_gaps", "risk"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "변경 사항에 대한 1-2줄 요약"
+    },
+    "must_fix": {
+      "type": "array",
+      "description": "반드시 수정해야 하는 결함 목록",
+      "items": {
+        "type": "object",
+        "required": ["file", "issue", "reason", "suggested_fix"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "결함이 있는 파일 경로"
+          },
+          "issue": {
+            "type": "string",
+            "description": "결함 설명"
+          },
+          "reason": {
+            "type": "string",
+            "description": "이것이 결함인 이유 (PROJECT_RULES.md 규칙 참조)"
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "수정 방향 제안"
+          }
+        }
+      }
+    },
+    "should_fix": {
+      "type": "array",
+      "description": "수정을 권장하는 경미한 이슈 목록",
+      "items": {
+        "type": "object",
+        "required": ["file", "issue", "reason", "suggested_fix"],
+        "properties": {
+          "file": { "type": "string" },
+          "issue": { "type": "string" },
+          "reason": { "type": "string" },
+          "suggested_fix": { "type": "string" }
+        }
+      }
+    },
+    "test_gaps": {
+      "type": "array",
+      "description": "누락된 테스트 항목",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "변경의 위험도 — low: 단순 추가, medium: 기존 상태 전이 수정, high: 핵심 인터랙션 변경"
+    }
+  }
+}

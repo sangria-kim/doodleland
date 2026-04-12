@@ -122,6 +122,11 @@
 - 라이브러리는 현재 독립 라우트보다 바텀시트/재사용 컴포넌트 용도로 쓰인다.
 - 캐릭터 탭 반응은 수직 점프가 아니라 scale bounce다.
 
+## 하네스
+- 하네스 규칙과 역할별 프롬프트는 `docs/harness/`를 참조한다.
+- 실행 규칙은 `AGENTS.md [7]`을 따른다.
+- 실행기: `scripts/harness_runner.py`
+
 ## 참고 문서
 - 세부 기술 근거: `docs/01_TECH_STACK.md`
 - 구조와 모델: `docs/02_ARCHITECTURE.md`
