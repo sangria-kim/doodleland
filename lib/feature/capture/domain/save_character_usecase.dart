@@ -10,6 +10,8 @@ import '../data/background_removal_config.dart';
 import '../../library/data/character_repository.dart';
 import '../data/background_remover.dart';
 
+const double _preprocessedInputNonOpaqueThreshold = 0.05;
+
 class SaveCharacterUseCase {
   const SaveCharacterUseCase({
     required CharacterRepository characterRepository,
@@ -31,9 +33,7 @@ class SaveCharacterUseCase {
     }
 
     final bytes = await source.readAsBytes();
-    if (image.decodeImage(bytes) == null) {
-      throw StateError('이미지 디코드에 실패했습니다.');
-    }
+    final inputAnalysis = _analyzeSaveInput(bytes);
 
     final storagePaths = await _characterStoragePathFactory.create();
     final originalImagePath = await storagePaths.originalImagePath();
@@ -41,23 +41,32 @@ class SaveCharacterUseCase {
     final thumbnailPath = await storagePaths.thumbnailImagePath();
 
     await source.copy(originalImagePath);
-    final removalResult = await _backgroundRemover.remove(
-      bytes,
-      trimToForeground: false,
-      debugSession: await _buildDebugSession(
-        storagePaths: storagePaths,
-        transparentImagePath: transparentImagePath,
-      ),
-    );
-    if (!removalResult.success) {
-      throw StateError('그림을 인식하지 못했어요');
+    var transparentImageBytes = inputAnalysis.normalizedPngBytes;
+    var transparentWidth = inputAnalysis.width;
+    var transparentHeight = inputAnalysis.height;
+    String? qualityWarningMessage;
+
+    if (!inputAnalysis.shouldPassthroughBackgroundRemoval) {
+      final removalResult = await _backgroundRemover.remove(
+        bytes,
+        trimToForeground: false,
+        debugSession: await _buildDebugSession(
+          storagePaths: storagePaths,
+          transparentImagePath: transparentImagePath,
+        ),
+      );
+      if (!removalResult.success) {
+        throw StateError('그림을 인식하지 못했어요');
+      }
+      transparentImageBytes = removalResult.outputImageBytes;
+      transparentWidth = removalResult.outputWidth;
+      transparentHeight = removalResult.outputHeight;
+      qualityWarningMessage = removalResult.qualityWarningMessage;
     }
-    await File(
-      transparentImagePath,
-    ).writeAsBytes(removalResult.outputImageBytes);
-    final transparentBytes = await File(transparentImagePath).readAsBytes();
+
+    await File(transparentImagePath).writeAsBytes(transparentImageBytes);
     await _saveThumbnailImage(
-      sourceImageBytes: transparentBytes,
+      sourceImageBytes: transparentImageBytes,
       destinationImagePath: thumbnailPath,
     );
 
@@ -66,13 +75,13 @@ class SaveCharacterUseCase {
       originalImagePath: originalImagePath,
       transparentImagePath: transparentImagePath,
       thumbnailPath: thumbnailPath,
-      width: removalResult.outputWidth,
-      height: removalResult.outputHeight,
+      width: transparentWidth,
+      height: transparentHeight,
     );
 
     return SaveCharacterResult(
       characterId: savedId,
-      qualityWarningMessage: removalResult.qualityWarningMessage,
+      qualityWarningMessage: qualityWarningMessage,
     );
   }
 
@@ -104,6 +113,33 @@ class SaveCharacterUseCase {
   }
 }
 
+_SaveInputAnalysis _analyzeSaveInput(Uint8List sourceBytes) {
+  final decodedImage = image.decodeImage(sourceBytes);
+  if (decodedImage == null) {
+    throw StateError('이미지 디코드에 실패했습니다.');
+  }
+
+  final totalPixels = decodedImage.width * decodedImage.height;
+  var nonOpaquePixels = 0;
+  for (var y = 0; y < decodedImage.height; y++) {
+    for (var x = 0; x < decodedImage.width; x++) {
+      if (decodedImage.getPixel(x, y).a.round() < 255) {
+        nonOpaquePixels++;
+      }
+    }
+  }
+
+  final nonOpaquePixelRatio = totalPixels == 0
+      ? 0.0
+      : nonOpaquePixels / totalPixels;
+  return _SaveInputAnalysis(
+    normalizedPngBytes: Uint8List.fromList(image.encodePng(decodedImage)),
+    width: decodedImage.width,
+    height: decodedImage.height,
+    nonOpaquePixelRatio: nonOpaquePixelRatio,
+  );
+}
+
 class SaveCharacterResult {
   const SaveCharacterResult({
     required this.characterId,
@@ -112,6 +148,23 @@ class SaveCharacterResult {
 
   final int characterId;
   final String? qualityWarningMessage;
+}
+
+class _SaveInputAnalysis {
+  const _SaveInputAnalysis({
+    required this.normalizedPngBytes,
+    required this.width,
+    required this.height,
+    required this.nonOpaquePixelRatio,
+  });
+
+  final Uint8List normalizedPngBytes;
+  final int width;
+  final int height;
+  final double nonOpaquePixelRatio;
+
+  bool get shouldPassthroughBackgroundRemoval =>
+      nonOpaquePixelRatio >= _preprocessedInputNonOpaqueThreshold;
 }
 
 List<int> _renderThumbnailPng({

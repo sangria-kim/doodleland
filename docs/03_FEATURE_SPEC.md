@@ -42,17 +42,20 @@
   - 하단 `LinearProgressIndicator`
 
 ### A-4. 저장 시 배경 제거 및 라이브러리 등록
-- 실제 배경 제거는 `저장하기` 또는 `저장하고 하나 더!`를 눌렀을 때 실행합니다.
+- 최종 투명 산출물 생성과 라이브러리 저장은 `저장하기` 또는 `저장하고 하나 더!`를 눌렀을 때 실행합니다.
 - 처리 순서:
   1. 크롭 이미지를 원본 보관 경로로 복사
-  2. `BackgroundRemover.remove(croppedImageBytes)` 실행
-  3. 투명 PNG 기준 썸네일 생성
-  4. DB에 캐릭터 메타데이터 저장
+  2. 크롭 결과의 `nonOpaquePixelRatio(alpha < 255 비율)`를 계산
+  3. `nonOpaquePixelRatio >= 5%`이면 입력 이미지를 그대로 투명 PNG로 저장하고, 미만이면 `BackgroundRemover.remove(croppedImageBytes)` 실행
+  4. 투명 PNG 기준 썸네일 생성
+  5. DB에 캐릭터 메타데이터 저장
 - 배경 제거 마스크 구성:
   - 선화 마스크
   - 채색 마스크(Phase1 신규)
   - 경계 보존 마스크
   - 최종 결과는 세 마스크 union 후 noise component 제거
+- passthrough 제한:
+  - 이미 투명한 입력이라도 투명 영역이 매우 작으면 기존 remover 경로로 들어갈 수 있습니다.
 - 실패 처리:
   - 자동 인식 실패 또는 배경 제거 실패 시 사용자 메시지는 `"그림을 인식하지 못했어요"`로 통일
   - 상세 실패 원인은 debug/log 데이터로만 관리
@@ -62,7 +65,8 @@
   - `characters/thumbnail/*.png`
   - `characters` 테이블 row
 - 품질 경고:
-  - 투명 비율이 `5% 미만` 또는 `95% 초과`이면 경고 문자열을 반환
+  - remover 경로에서 계산한 `transparentAreaRatio(alpha == 0 비율)`가 `5% 미만` 또는 `95% 초과`이면 경고 문자열을 반환
+  - passthrough 경로에서는 별도 품질 경고를 반환하지 않음
   - 현재는 저장 후 완료 스낵바에 함께 표시
 - 이름 정책:
   - `그림 {ISO-8601 시각}` 형식 자동 생성

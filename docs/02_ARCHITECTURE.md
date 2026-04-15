@@ -92,7 +92,7 @@ Drift가 생성하는 `Character` row 모델을 사용합니다.
 | `id` | `int` | PK |
 | `name` | `String` | 시간 기반 자동 생성 이름 |
 | `originalImagePath` | `String` | 크롭 결과 원본 복사본 |
-| `transparentImagePath` | `String` | 배경 제거 PNG |
+| `transparentImagePath` | `String` | 최종 투명 PNG |
 | `thumbnailPath` | `String` | 썸네일 PNG |
 | `width` | `int` | 투명 결과 너비 |
 | `height` | `int` | 투명 결과 높이 |
@@ -261,12 +261,17 @@ DAO / File System / 이미지 처리
 - 배경 제거 모듈
   - 인터페이스: `BackgroundRemover.remove(croppedImageBytes)`
   - 출력: `RemovalResult`
-  - 역할: 저장 시 최종 투명 PNG 생성
+  - 역할: 비투명 입력 저장 시 최종 투명 PNG 생성
+- 저장 판정 helper
+  - 인터페이스: `SaveCharacterUseCase` 내부 helper
+  - 출력: `nonOpaquePixelRatio`
+  - 역할: `alpha < 255` 비율로 passthrough 저장 여부 판정
 - UI/Flow 모듈
   - CaptureScreen에서 자동 인식 실행
   - `CropScreenArgs(sourceImagePath, detectionResult)`를 `GoRouter extra`로 전달
   - CropScreen에서 정규화 bbox를 viewport 좌표로 변환해 `InitialRectBuilder`에 반영
   - 사용자가 조정한 crop 값을 최우선으로 저장 처리에 사용
+  - 저장 시 입력이 이미 충분히 투명하면 remover를 생략하고 그대로 `transparent` 산출물로 저장
 
 현재 구현에서의 구체 예:
 - capture: `CaptureScreen` -> `CaptureViewModel` -> `SaveCharacterUseCase`
