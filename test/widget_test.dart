@@ -1,22 +1,16 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:doodleland/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('Home screen smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: DoodlelandApp()));
 
-    // Verify that the new home screen is rendered.
-    expect(find.text('그림놀이터'), findsOneWidget);
+    expect(find.byKey(const Key('home-bg-base')), findsOneWidget);
+    expect(find.byKey(const Key('home-bg-foreground')), findsOneWidget);
+    expect(find.byKey(const Key('home-bg-cars')), findsOneWidget);
+    expect(find.byKey(const Key('home-bg-title')), findsOneWidget);
     expect(find.text('그림 만들기'), findsOneWidget);
     expect(find.text('놀이 시작'), findsOneWidget);
   });

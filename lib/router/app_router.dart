@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/presentation/android_fullscreen_scope.dart';
@@ -11,8 +12,11 @@ import '../feature/stage/presentation/character_placement_flow_screen.dart';
 import '../feature/stage/presentation/stage_screen.dart';
 
 class AppRouter {
+  static final RouteObserver<PageRoute<dynamic>> homeRouteObserver =
+      RouteObserver<PageRoute<dynamic>>();
+
   static final GoRouter router = GoRouter(
-    observers: [androidFullscreenNavigatorObserver],
+    observers: [androidFullscreenNavigatorObserver, homeRouteObserver],
     routes: <RouteBase>[
       GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
       GoRoute(
