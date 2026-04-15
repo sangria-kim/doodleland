@@ -133,73 +133,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final gap = _responsiveGap(constraints.maxHeight);
-            final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
-            final buttonWidth = _responsiveButtonWidth(
-              constraints.maxWidth,
-              gap,
-            );
-            final buttonFont = _responsiveButtonFont(constraints.maxHeight);
-            final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
-            final buttonYOffset = _responsiveButtonYOffset(
-              constraints.maxHeight,
-            );
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final gap = _responsiveGap(constraints.maxHeight);
+          final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
+          final buttonWidth = _responsiveButtonWidth(constraints.maxWidth, gap);
+          final buttonFont = _responsiveButtonFont(constraints.maxHeight);
+          final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
+          final buttonYOffset = _responsiveButtonYOffset(constraints.maxHeight);
 
-            return AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Image.asset(
-                        'assets/backgrounds/main/bg_main_background.png',
-                        key: const Key('home-bg-base'),
-                        fit: BoxFit.cover,
-                      ),
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/backgrounds/main/bg_main_background.png',
+                      key: const Key('home-bg-base'),
+                      fit: BoxFit.cover,
                     ),
-                    Positioned.fill(
-                      child: Opacity(
-                        opacity: _foregroundOpacity.value,
-                        child: Transform.translate(
-                          offset: Offset(0, _foregroundOffsetY.value),
-                          child: Image.asset(
-                            'assets/backgrounds/main/bg_main_foreground.png',
-                            key: const Key('home-bg-foreground'),
-                            fit: BoxFit.cover,
-                          ),
+                  ),
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: _foregroundOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _foregroundOffsetY.value),
+                        child: Image.asset(
+                          'assets/backgrounds/main/bg_main_foreground.png',
+                          key: const Key('home-bg-foreground'),
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                    Positioned.fill(
-                      child: Opacity(
-                        opacity: _carsOpacity.value,
-                        child: Transform.translate(
-                          offset: Offset(_carsOffsetX.value, 0),
-                          child: Image.asset(
-                            'assets/backgrounds/main/bg_main_cars.png',
-                            key: const Key('home-bg-cars'),
-                            fit: BoxFit.cover,
-                          ),
+                  ),
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: _carsOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(_carsOffsetX.value, 0),
+                        child: Image.asset(
+                          'assets/backgrounds/main/bg_main_cars.png',
+                          key: const Key('home-bg-cars'),
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                    Positioned.fill(
-                      child: Opacity(
-                        opacity: _titleOpacity.value,
-                        child: Transform.scale(
-                          scale: _titleScale.value,
-                          child: Image.asset(
-                            'assets/backgrounds/main/bg_main_title.png',
-                            key: const Key('home-bg-title'),
-                            fit: BoxFit.cover,
-                          ),
+                  ),
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: _titleOpacity.value,
+                      child: Transform.scale(
+                        scale: _titleScale.value,
+                        child: Image.asset(
+                          'assets/backgrounds/main/bg_main_title.png',
+                          key: const Key('home-bg-title'),
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                    Center(
+                  ),
+                  SafeArea(
+                    child: Center(
                       child: Transform.translate(
                         offset: Offset(0, buttonYOffset),
                         child: ConstrainedBox(
@@ -236,12 +231,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                     ),
-                  ],
-                );
-              },
-            );
-          },
-        ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -334,10 +329,10 @@ class _HomeActionButton extends StatelessWidget {
     final isEnabled = onPressed != null;
     final isPrimary = !tonal;
     final borderRadius = BorderRadius.circular(30);
-    final buttonBackground = (isPrimary
-            ? AppPalette.primary
-            : const Color(0xFF53B4A0))
-        .withValues(alpha: 0.6);
+    final buttonBackground =
+        (isPrimary ? AppPalette.primary : const Color(0xFF53B4A0)).withValues(
+          alpha: 0.6,
+        );
     final buttonForeground = AppPalette.onPrimary;
     final disabledBackground = isPrimary
         ? const Color(0xFFC8CDD2)
@@ -382,9 +377,7 @@ class _HomeActionButton extends StatelessWidget {
                 label: label,
                 buttonFontSize: buttonFontSize,
                 iconSize: iconSize,
-                color: buttonForeground.withValues(
-                  alpha: isEnabled ? 1 : 0.55,
-                ),
+                color: buttonForeground.withValues(alpha: isEnabled ? 1 : 0.55),
               ),
             ),
           ),
