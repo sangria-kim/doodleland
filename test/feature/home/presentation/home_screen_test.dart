@@ -47,13 +47,14 @@ void main() {
   ) async {
     final router = GoRouter(
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const HomeScreen(),
-        ),
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/capture',
           builder: (context, state) => const Scaffold(body: Text('capture')),
+        ),
+        GoRoute(
+          path: '/library',
+          builder: (context, state) => const Scaffold(body: Text('library')),
         ),
         GoRoute(
           path: '/stage/background',
@@ -85,13 +86,14 @@ void main() {
   ) async {
     final router = GoRouter(
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const HomeScreen(),
-        ),
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/capture',
           builder: (context, state) => const Scaffold(body: Text('capture')),
+        ),
+        GoRoute(
+          path: '/library',
+          builder: (context, state) => const Scaffold(body: Text('library')),
         ),
         GoRoute(
           path: '/stage/background',
@@ -127,5 +129,42 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('stage background'), findsOneWidget);
+  });
+
+  testWidgets('open library from home action', (WidgetTester tester) async {
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+        GoRoute(
+          path: '/capture',
+          builder: (context, state) => const Scaffold(body: Text('capture')),
+        ),
+        GoRoute(
+          path: '/library',
+          builder: (context, state) => const Scaffold(body: Text('library')),
+        ),
+        GoRoute(
+          path: '/stage/background',
+          builder: (context, state) =>
+              const Scaffold(body: Text('stage background')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          characterRepositoryProvider.overrideWith(
+            (ref) => _FakeCharacterRepository(const []),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.tap(find.text('내 그림'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('library'), findsOneWidget);
   });
 }

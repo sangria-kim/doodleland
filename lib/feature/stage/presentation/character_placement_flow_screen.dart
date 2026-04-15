@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/presentation/character_thumbnail_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../library/presentation/library_viewmodel.dart';
 import '../domain/model/motion_preset.dart';
@@ -168,31 +169,22 @@ class _CharacterStep extends StatelessWidget {
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = switch (constraints.maxWidth) {
-              >= 960 => 4,
-              _ => 3,
-            };
-
-            return GridView.builder(
-              padding: EdgeInsets.zero,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 0.8,
-              ),
-              itemCount: state.characters.length,
-              itemBuilder: (context, index) {
-                final character = state.characters[index];
-                return _CharacterGridCard(
-                  character: character,
-                  selected: selectedCharacter?.id == character.id,
-                  onTap: () => onSelect(character),
-                );
-              },
+        padding: const EdgeInsets.all(12),
+        child: GridView.builder(
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1,
+          ),
+          itemCount: state.characters.length,
+          itemBuilder: (context, index) {
+            final character = state.characters[index];
+            return _CharacterGridCard(
+              character: character,
+              selected: selectedCharacter?.id == character.id,
+              onTap: () => onSelect(character),
             );
           },
         ),
@@ -275,69 +267,20 @@ class _CharacterGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Material(
-      color: colorScheme.surface,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant,
-              width: selected ? 2 : 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: SizedBox(
-                        width: character.width.toDouble(),
-                        height: character.height.toDouble(),
-                        child: Image.file(
-                          File(character.thumbnailPath),
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.image),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: Text(
-                  character.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.card + 2),
+        border: Border.all(
+          color: selected ? colorScheme.primary : Colors.transparent,
+          width: 2,
         ),
       ),
+      padding: const EdgeInsets.all(1),
+      child: CharacterThumbnailCard(character: character, onTap: onTap),
     );
   }
 }
@@ -566,11 +509,11 @@ class _AnimatedCharacterPreviewState extends State<_AnimatedCharacterPreview>
               ),
             ),
           ),
-      builder: (context, child) {
-        final phase = _previewCycle() * math.pi * 2;
-        final flutterWaveSecondary = math.sin(phase * 2);
-        final flutterWaveTertiary = math.sin(phase * 3);
-        final verticalOffset = switch (widget.motion) {
+          builder: (context, child) {
+            final phase = _previewCycle() * math.pi * 2;
+            final flutterWaveSecondary = math.sin(phase * 2);
+            final flutterWaveTertiary = math.sin(phase * 3);
+            final verticalOffset = switch (widget.motion) {
               MotionPreset.floating => math.sin(phase) * floatingOffsetY,
               MotionPreset.bouncing => -math.sin(phase).abs() * bouncingOffsetY,
               MotionPreset.gliding => _glideProfile(phase) * glidingOffsetY,

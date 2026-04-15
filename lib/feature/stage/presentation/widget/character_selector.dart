@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../../../core/presentation/character_thumbnail_card.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../stage/domain/model/motion_preset.dart';
 import '../../../library/presentation/library_viewmodel.dart';
@@ -151,33 +152,22 @@ class _CharacterSelectionList extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = switch (constraints.maxWidth) {
-              >= 760 => 4,
-              >= 520 => 3,
-              _ => 2,
-            };
-            final childAspectRatio = constraints.maxWidth >= 760 ? 0.8 : 0.76;
-
-            return GridView.builder(
-              padding: EdgeInsets.zero,
-              itemCount: state.characters.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: childAspectRatio,
-              ),
-              itemBuilder: (context, index) {
-                final character = state.characters[index];
-                final isDeleting = state.deletingCharacterId == character.id;
-                return _CharacterCard(
-                  character: character,
-                  isDeleting: isDeleting,
-                  onTap: onTap,
-                );
-              },
+        child: GridView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: state.characters.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1,
+          ),
+          itemBuilder: (context, index) {
+            final character = state.characters[index];
+            final isDeleting = state.deletingCharacterId == character.id;
+            return _CharacterCard(
+              character: character,
+              isDeleting: isDeleting,
+              onTap: onTap,
             );
           },
         ),
@@ -667,94 +657,10 @@ class _CharacterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: Material(
-        color: colorScheme.surface,
-        child: InkWell(
-          onTap: isDeleting ? null : () => onTap(character),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: _CheckerboardTile(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: SizedBox(
-                            width: character.width.toDouble(),
-                            height: character.height.toDouble(),
-                            child: Image.file(
-                              File(character.thumbnailPath),
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.image),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      border: Border(
-                        top: BorderSide(color: colorScheme.outlineVariant),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        character.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      border: Border.all(color: colorScheme.outlineVariant),
-                    ),
-                  ),
-                ),
-              ),
-              if (isDeleting)
-                const Positioned.fill(
-                  child: ColoredBox(
-                    color: Color(0x66000000),
-                    child: Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
+    return CharacterThumbnailCard(
+      character: character,
+      isDeleting: isDeleting,
+      onTap: () => onTap(character),
     );
   }
 }

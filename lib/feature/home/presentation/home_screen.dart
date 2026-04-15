@@ -198,11 +198,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       child: Transform.translate(
                         offset: Offset(0, buttonYOffset),
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 840),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          constraints: const BoxConstraints(maxWidth: 1080),
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: gap,
+                            runSpacing: gap,
                             children: [
-                              SizedBox(
+                              _HomeActionButtonFrame(
                                 width: buttonWidth,
                                 height: buttonHeight,
                                 child: _HomeActionButton(
@@ -213,8 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   onPressed: () => _startCreate(context),
                                 ),
                               ),
-                              SizedBox(width: gap),
-                              SizedBox(
+                              _HomeActionButtonFrame(
                                 width: buttonWidth,
                                 height: buttonHeight,
                                 child: _HomeActionButton(
@@ -224,6 +225,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   buttonFontSize: buttonFont,
                                   iconSize: buttonIconSize,
                                   onPressed: () => _startStage(context),
+                                ),
+                              ),
+                              _HomeActionButtonFrame(
+                                width: buttonWidth,
+                                height: buttonHeight,
+                                child: _HomeActionButton(
+                                  label: '내 그림',
+                                  icon: Icons.photo_library_outlined,
+                                  tonal: true,
+                                  backgroundColor: const Color(0xFF6A9FC7),
+                                  buttonFontSize: buttonFont,
+                                  iconSize: buttonIconSize,
+                                  onPressed: () => _openLibrary(context),
                                 ),
                               ),
                             ],
@@ -247,17 +261,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   double _responsiveGap(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (20 * density).clamp(6.0, 20.0);
+    return (16 * density).clamp(10.0, 18.0);
   }
 
   double _responsiveButtonHeight(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (88 * density * 2).clamp(124.0, 196.0);
+    return (126 * density).clamp(110.0, 144.0);
   }
 
   double _responsiveButtonWidth(double screenWidth, double gap) {
-    final available = screenWidth - gap;
-    return (available * 0.35).clamp(180.0, 420.0);
+    final available = screenWidth - (gap * 2);
+    return (available / 3).clamp(170.0, 280.0);
   }
 
   double _responsiveButtonFont(double screenHeight) {
@@ -305,6 +319,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     context.push('/capture');
   }
+
+  void _openLibrary(BuildContext context) {
+    if (!context.mounted) {
+      return;
+    }
+
+    context.push('/library');
+  }
+}
+
+class _HomeActionButtonFrame extends StatelessWidget {
+  const _HomeActionButtonFrame({
+    required this.width,
+    required this.height,
+    required this.child,
+  });
+
+  final double width;
+  final double height;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(width: width, height: height, child: child);
+  }
 }
 
 class _HomeActionButton extends StatelessWidget {
@@ -315,12 +354,14 @@ class _HomeActionButton extends StatelessWidget {
     required this.iconSize,
     this.onPressed,
     this.tonal = false,
+    this.backgroundColor,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
   final bool tonal;
+  final Color? backgroundColor;
   final double buttonFontSize;
   final double iconSize;
 
@@ -329,10 +370,10 @@ class _HomeActionButton extends StatelessWidget {
     final isEnabled = onPressed != null;
     final isPrimary = !tonal;
     final borderRadius = BorderRadius.circular(30);
-    final buttonBackground =
-        (isPrimary ? AppPalette.primary : const Color(0xFF53B4A0)).withValues(
-          alpha: 0.6,
-        );
+    final baseBackground =
+        backgroundColor ??
+        (isPrimary ? AppPalette.primary : const Color(0xFF53B4A0));
+    final buttonBackground = baseBackground.withValues(alpha: 0.6);
     final buttonForeground = AppPalette.onPrimary;
     final disabledBackground = isPrimary
         ? const Color(0xFFC8CDD2)
@@ -371,7 +412,7 @@ class _HomeActionButton extends StatelessWidget {
           ),
           child: SizedBox.expand(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _HomeActionButtonContent(
                 icon: icon,
                 label: label,
@@ -405,20 +446,23 @@ class _HomeActionButtonContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(icon, size: iconSize, color: color),
-        const SizedBox(width: 18),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: color,
-            fontSize: buttonFontSize,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
-            letterSpacing: -0.2,
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: buttonFontSize,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ],

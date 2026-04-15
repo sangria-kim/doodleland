@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,5 +14,6 @@ void main() {
     expect(find.byKey(const Key('home-bg-title')), findsOneWidget);
     expect(find.text('그림 만들기'), findsOneWidget);
     expect(find.text('놀이 시작'), findsOneWidget);
+    expect(find.text('내 그림'), findsOneWidget);
   });
 }

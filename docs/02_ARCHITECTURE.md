@@ -283,6 +283,7 @@ DAO / File System / 이미지 처리
 | 경로 | 화면 | 설명 |
 |------|------|------|
 | `/` | `HomeScreen` | 홈 |
+| `/library` | `LibraryScreen` | 저장 그림 관리 |
 | `/capture` | `CaptureScreen` | 소스 선택 |
 | `/capture/crop` | `CropScreen` | 자동 인식 결과를 반영한 크롭 편집 |
 | `/capture/preview` | `PreviewScreen` | 저장 전 크롭 결과 확인 |
@@ -290,7 +291,7 @@ DAO / File System / 이미지 처리
 | `/stage` | `StageScreen` | 무대 |
 
 추가 메모:
-- `LibraryScreen`은 구현되어 있지만 현재 라우터에 연결되어 있지 않습니다.
+- `LibraryScreen`은 홈의 `내 그림` 버튼에서 진입하는 전용 관리 화면입니다.
 - 무대에서 캐릭터 추가는 `CharacterSelector` 바텀시트로 처리합니다.
 - `/capture/crop` 이동 시 `extra`는 `CropScreenArgs`를 사용하며 `sourceImagePath`와 `detectionResult`를 함께 전달합니다.
 
