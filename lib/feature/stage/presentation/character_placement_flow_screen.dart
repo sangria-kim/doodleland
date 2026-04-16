@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/presentation/app_back_button.dart';
 import '../../../core/presentation/character_thumbnail_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../library/presentation/library_viewmodel.dart';
@@ -43,94 +44,101 @@ class _CharacterPlacementFlowScreenState
     final isCharacterStep = _step == _PlacementStep.character;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isCharacterStep ? '그림 고르기' : '움직임 고르기'),
-        leading: IconButton(
-          onPressed: () {
-            if (!isCharacterStep) {
-              setState(() {
-                _step = _PlacementStep.character;
-              });
-              return;
-            }
-            context.pop();
-          },
-          icon: const Icon(Icons.arrow_back),
-          tooltip: '뒤로 가기',
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: isCharacterStep
-                        ? _CharacterStep(
-                            key: const ValueKey('character-step'),
-                            state: state,
-                            selectedCharacter: _selectedCharacter,
-                            onSelect: (character) {
-                              setState(() {
-                                _selectedCharacter = character;
-                                _selectedMotion = MotionPreset.floating;
-                              });
-                            },
-                            onCreateCharacter: () => context.push('/capture'),
-                          )
-                        : _MotionStep(
-                            key: const ValueKey('motion-step'),
-                            character: _selectedCharacter!,
-                            selectedMotion: _selectedMotion,
-                            onMotionChanged: (motion) {
-                              setState(() {
-                                _selectedMotion = motion;
-                              });
-                            },
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (isCharacterStep)
-                  _CharacterStepActionBar(
-                    hasSelection: _selectedCharacter != null,
-                    onNext: _selectedCharacter == null
-                        ? null
-                        : () {
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                12 + AppBackButtonOverlay.contentTopClearance,
+                16,
+                16,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 980),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: isCharacterStep
+                              ? _CharacterStep(
+                                  key: const ValueKey('character-step'),
+                                  state: state,
+                                  selectedCharacter: _selectedCharacter,
+                                  onSelect: (character) {
+                                    setState(() {
+                                      _selectedCharacter = character;
+                                      _selectedMotion = MotionPreset.floating;
+                                    });
+                                  },
+                                  onCreateCharacter: () =>
+                                      context.push('/capture'),
+                                )
+                              : _MotionStep(
+                                  key: const ValueKey('motion-step'),
+                                  character: _selectedCharacter!,
+                                  selectedMotion: _selectedMotion,
+                                  onMotionChanged: (motion) {
+                                    setState(() {
+                                      _selectedMotion = motion;
+                                    });
+                                  },
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (isCharacterStep)
+                        _CharacterStepActionBar(
+                          hasSelection: _selectedCharacter != null,
+                          onNext: _selectedCharacter == null
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _step = _PlacementStep.motion;
+                                  });
+                                },
+                        )
+                      else
+                        _MotionStepActionBar(
+                          onBack: () {
                             setState(() {
-                              _step = _PlacementStep.motion;
+                              _step = _PlacementStep.character;
                             });
                           },
-                  )
-                else
-                  _MotionStepActionBar(
-                    onBack: () {
-                      setState(() {
-                        _step = _PlacementStep.character;
-                      });
-                    },
-                    onConfirm: () {
-                      final selectedCharacter = _selectedCharacter;
-                      if (selectedCharacter == null) {
-                        return;
-                      }
-                      context.pop(
-                        CharacterPlacementSelection(
-                          character: selectedCharacter,
-                          objectMotion: _selectedMotion,
+                          onConfirm: () {
+                            final selectedCharacter = _selectedCharacter;
+                            if (selectedCharacter == null) {
+                              return;
+                            }
+                            context.pop(
+                              CharacterPlacementSelection(
+                                character: selectedCharacter,
+                                objectMotion: _selectedMotion,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                    ],
                   ),
-              ],
+                ),
+              ),
             ),
           ),
-        ),
+          AppBackButtonOverlay(
+            onPressed: () {
+              if (!isCharacterStep) {
+                setState(() {
+                  _step = _PlacementStep.character;
+                });
+                return;
+              }
+              context.pop();
+            },
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/presentation/app_back_button.dart';
 import '../../../core/theme/app_theme.dart';
 import 'capture_viewmodel.dart';
 
@@ -10,15 +11,23 @@ class CaptureScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final canPop = Navigator.of(context).canPop();
+
     return Scaffold(
-      appBar: AppBar(title: Text('그림 가져오기')),
-      body: _CaptureScreenBody(),
+      body: Stack(
+        children: [
+          _CaptureScreenBody(showBackButton: canPop),
+          if (canPop) const AppBackButtonOverlay(),
+        ],
+      ),
     );
   }
 }
 
 class _CaptureScreenBody extends ConsumerStatefulWidget {
-  const _CaptureScreenBody();
+  const _CaptureScreenBody({required this.showBackButton});
+
+  final bool showBackButton;
 
   @override
   ConsumerState<_CaptureScreenBody> createState() => _CaptureScreenBodyState();
@@ -45,7 +54,11 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
             padding: EdgeInsets.only(
               left: AppSpacing.pageHorizontal,
               right: AppSpacing.pageHorizontal,
-              top: AppSpacing.pageVertical,
+              top:
+                  AppSpacing.pageVertical +
+                  (widget.showBackButton
+                      ? AppBackButtonOverlay.contentTopClearance
+                      : 0),
               bottom: AppSpacing.pageVertical + mediaQuery.viewInsets.bottom,
             ),
             child: Column(
