@@ -26,6 +26,16 @@ abstract class StageSfxPlayer {
   Future<void> dispose();
 }
 
+abstract class StageVoicePlayer {
+  Future<void> setVolume(double volume);
+
+  Future<void> playAsset(String assetPath);
+
+  Future<void> stop();
+
+  Future<void> dispose();
+}
+
 class AudioplayersStageBgmPlayer implements StageBgmPlayer {
   AudioplayersStageBgmPlayer() : _player = AudioPlayer();
 
@@ -93,15 +103,51 @@ class AudioplayersStageSfxPlayer implements StageSfxPlayer {
   }
 }
 
+class AudioplayersStageVoicePlayer implements StageVoicePlayer {
+  AudioplayersStageVoicePlayer() : _player = AudioPlayer();
+
+  final AudioPlayer _player;
+
+  @override
+  Future<void> setVolume(double volume) async {
+    await _player.setVolume(volume);
+  }
+
+  @override
+  Future<void> playAsset(String assetPath) async {
+    await _player.play(
+      AssetSource(assetPath),
+      mode: PlayerMode.mediaPlayer,
+      volume: StageAudioController.voiceVolume,
+      ctx: StageAudioController.voiceAudioContext,
+    );
+  }
+
+  @override
+  Future<void> stop() async {
+    await _player.stop();
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _player.dispose();
+  }
+}
+
 class StageAudioController {
-  StageAudioController({StageBgmPlayer? bgmPlayer, StageSfxPlayer? sfxPlayer})
-    : _bgmPlayer = bgmPlayer ?? AudioplayersStageBgmPlayer(),
-      _sfxPlayer = sfxPlayer ?? AudioplayersStageSfxPlayer() {
+  StageAudioController({
+    StageBgmPlayer? bgmPlayer,
+    StageSfxPlayer? sfxPlayer,
+    StageVoicePlayer? voicePlayer,
+  }) : _bgmPlayer = bgmPlayer ?? AudioplayersStageBgmPlayer(),
+       _sfxPlayer = sfxPlayer ?? AudioplayersStageSfxPlayer(),
+       _voicePlayer = voicePlayer ?? AudioplayersStageVoicePlayer() {
     unawaited(_initialize());
   }
 
   static const double bgmVolume = 0.5;
   static const double sfxVolume = 0.85;
+  static const double voiceVolume = 1.0;
 
   static const String _spawnSfxAsset = 'audio/sfx/sfx_spawn_pop.ogg';
   static const String _removeSfxAsset = 'audio/sfx/sfx_remove_swoosh.ogg';
@@ -111,11 +157,19 @@ class StageAudioController {
       'audio/main/main_create_btn_02.m4a';
   static const String _homePlaySfxAsset1 = 'audio/main/main_play_btn_01.m4a';
   static const String _homePlaySfxAsset2 = 'audio/main/main_play_btn_02.m4a';
+  static const String _homeEntryVoiceAsset1 =
+      'audio/main/main_entry_voice_01.m4a';
+  static const String _homeEntryVoiceAsset2 =
+      'audio/main/main_entry_voice_02.m4a';
   static final AudioContext _bgmAudioContext = AudioContextConfig(
     focus: AudioContextConfigFocus.gain,
     route: AudioContextConfigRoute.system,
   ).build();
   static final AudioContext _sfxAudioContext = AudioContextConfig(
+    focus: AudioContextConfigFocus.mixWithOthers,
+    route: AudioContextConfigRoute.system,
+  ).build();
+  static final AudioContext _voiceAudioContext = AudioContextConfig(
     focus: AudioContextConfigFocus.mixWithOthers,
     route: AudioContextConfigRoute.system,
   ).build();
@@ -128,11 +182,14 @@ class StageAudioController {
 
   final StageBgmPlayer _bgmPlayer;
   final StageSfxPlayer _sfxPlayer;
+  final StageVoicePlayer _voicePlayer;
   int _homeCreateSfxIndex = 0;
   int _homePlaySfxIndex = 0;
+  int _homeEntryVoiceIndex = 0;
 
   static AudioContext get bgmAudioContext => _bgmAudioContext;
   static AudioContext get sfxAudioContext => _sfxAudioContext;
+  static AudioContext get voiceAudioContext => _voiceAudioContext;
 
   String? _currentBgmAsset;
   bool _isBgmPlaying = false;
@@ -146,6 +203,7 @@ class StageAudioController {
       await _bgmPlayer.setLooping();
       await _bgmPlayer.setVolume(bgmVolume);
       await _sfxPlayer.setVolume(sfxVolume);
+      await _voicePlayer.setVolume(voiceVolume);
     } catch (error, stackTrace) {
       debugPrint('[audio] initialize failed: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -214,6 +272,15 @@ class StageAudioController {
     await _playSfx(targetAsset);
   }
 
+  Future<void> playHomeEntryVoice() async {
+    final index = _homeEntryVoiceIndex % 2;
+    _homeEntryVoiceIndex += 1;
+    final targetAsset = index == 0
+        ? _homeEntryVoiceAsset1
+        : _homeEntryVoiceAsset2;
+    await _playVoice(targetAsset);
+  }
+
   Future<void> _playSfx(String assetPath) async {
     if (_disposed) {
       return;
@@ -223,6 +290,19 @@ class StageAudioController {
       await _sfxPlayer.playAsset(assetPath);
     } catch (error, stackTrace) {
       debugPrint('[audio] sfx play failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  Future<void> _playVoice(String assetPath) async {
+    if (_disposed) {
+      return;
+    }
+    try {
+      await _voicePlayer.stop();
+      await _voicePlayer.playAsset(assetPath);
+    } catch (error, stackTrace) {
+      debugPrint('[audio] voice play failed: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
   }
@@ -258,7 +338,11 @@ class StageAudioController {
       return;
     }
     _disposed = true;
-    await Future.wait<void>([_bgmPlayer.dispose(), _sfxPlayer.dispose()]);
+    await Future.wait<void>([
+      _bgmPlayer.dispose(),
+      _sfxPlayer.dispose(),
+      _voicePlayer.dispose(),
+    ]);
   }
 }
 

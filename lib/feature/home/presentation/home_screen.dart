@@ -101,6 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
 
     _controller.forward();
+    unawaited(ref.read(stageAudioControllerProvider).playHomeEntryVoice());
   }
 
   @override
@@ -128,6 +129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void didPopNext() {
     _controller.forward(from: 0);
+    unawaited(ref.read(stageAudioControllerProvider).playHomeEntryVoice());
   }
 
   @override

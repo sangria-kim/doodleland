@@ -1,13 +1,17 @@
 import 'package:doodleland/core/audio/stage_audio_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../test_helpers/fake_stage_audio.dart';
+
 void main() {
   test('plays mapped background bgm and switches track', () async {
-    final bgmPlayer = _FakeStageBgmPlayer();
-    final sfxPlayer = _FakeStageSfxPlayer();
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
     );
     addTearDown(controller.dispose);
 
@@ -25,11 +29,13 @@ void main() {
   });
 
   test('does not replay same bgm while already playing', () async {
-    final bgmPlayer = _FakeStageBgmPlayer();
-    final sfxPlayer = _FakeStageSfxPlayer();
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
     );
     addTearDown(controller.dispose);
 
@@ -44,11 +50,13 @@ void main() {
   });
 
   test('stops bgm for non-mapped background id', () async {
-    final bgmPlayer = _FakeStageBgmPlayer();
-    final sfxPlayer = _FakeStageSfxPlayer();
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
     );
     addTearDown(controller.dispose);
 
@@ -63,11 +71,13 @@ void main() {
   });
 
   test('stops bgm when route leaves stage flow', () async {
-    final bgmPlayer = _FakeStageBgmPlayer();
-    final sfxPlayer = _FakeStageSfxPlayer();
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
     );
     addTearDown(controller.dispose);
 
@@ -78,11 +88,13 @@ void main() {
   });
 
   test('keeps bgm when route is stage background selector', () async {
-    final bgmPlayer = _FakeStageBgmPlayer();
-    final sfxPlayer = _FakeStageSfxPlayer();
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
     );
     addTearDown(controller.dispose);
 
@@ -93,11 +105,13 @@ void main() {
   });
 
   test('plays spawn and remove sfx', () async {
-    final bgmPlayer = _FakeStageBgmPlayer();
-    final sfxPlayer = _FakeStageSfxPlayer();
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
     );
     addTearDown(controller.dispose);
 
@@ -112,61 +126,47 @@ void main() {
       ]),
     );
   });
-}
 
-class _FakeStageBgmPlayer implements StageBgmPlayer {
-  int setLoopingCount = 0;
-  int stopCount = 0;
-  int disposeCount = 0;
-  double? volume;
-  final List<String> playedAssets = [];
+  test('plays alternating home entry voice on dedicated player', () async {
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
+    final controller = StageAudioController(
+      bgmPlayer: bgmPlayer,
+      sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
+    );
+    addTearDown(controller.dispose);
 
-  @override
-  Future<void> dispose() async {
-    disposeCount += 1;
-  }
+    await controller.playHomeEntryVoice();
+    await controller.playHomeEntryVoice();
+    await controller.playHomeEntryVoice();
 
-  @override
-  Future<void> playAsset(String assetPath) async {
-    playedAssets.add(assetPath);
-  }
+    expect(
+      voicePlayer.playedAssets,
+      equals([
+        'audio/main/main_entry_voice_01.m4a',
+        'audio/main/main_entry_voice_02.m4a',
+        'audio/main/main_entry_voice_01.m4a',
+      ]),
+    );
+    expect(sfxPlayer.playedAssets, isEmpty);
+  });
 
-  @override
-  Future<void> setLooping() async {
-    setLoopingCount += 1;
-  }
+  test('disposes home voice player with other audio players', () async {
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = FakeStageVoicePlayer();
+    final controller = StageAudioController(
+      bgmPlayer: bgmPlayer,
+      sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
+    );
 
-  @override
-  Future<void> setVolume(double volume) async {
-    this.volume = volume;
-  }
+    await controller.dispose();
 
-  @override
-  Future<void> stop() async {
-    stopCount += 1;
-  }
-}
-
-class _FakeStageSfxPlayer implements StageSfxPlayer {
-  int disposeCount = 0;
-  double? volume;
-  final List<String> playedAssets = [];
-
-  @override
-  Future<void> dispose() async {
-    disposeCount += 1;
-  }
-
-  @override
-  Future<void> playAsset(String assetPath) async {
-    playedAssets.add(assetPath);
-  }
-
-  @override
-  Future<void> setVolume(double volume) async {
-    this.volume = volume;
-  }
-
-  @override
-  Future<void> stop() async {}
+    expect(bgmPlayer.disposeCount, equals(1));
+    expect(sfxPlayer.disposeCount, equals(1));
+    expect(voicePlayer.disposeCount, equals(1));
+  });
 }
