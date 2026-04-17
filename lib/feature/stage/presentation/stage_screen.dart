@@ -182,6 +182,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
     ref.listen<StageState>(stageViewModelProvider, _onStageStateChanged);
     final state = ref.watch(stageViewModelProvider);
     final backgroundId = state.selectedBackground.id;
+
     if (_lastSyncedBackgroundId != backgroundId) {
       _lastSyncedBackgroundId = backgroundId;
       unawaited(

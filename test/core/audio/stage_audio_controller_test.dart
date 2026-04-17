@@ -138,6 +138,7 @@ void main() {
     );
     addTearDown(controller.dispose);
 
+    controller.setHomeRouteForEntryVoice(true);
     await controller.playHomeEntryVoice();
     await controller.playHomeEntryVoice();
     await controller.playHomeEntryVoice();
@@ -151,6 +152,26 @@ void main() {
       ]),
     );
     expect(sfxPlayer.playedAssets, isEmpty);
+  });
+
+  test('cancels pending home entry voice when leaving home route', () async {
+    final bgmPlayer = FakeStageBgmPlayer();
+    final sfxPlayer = FakeStageSfxPlayer();
+    final voicePlayer = _DelayedStopVoicePlayer();
+    final controller = StageAudioController(
+      bgmPlayer: bgmPlayer,
+      sfxPlayer: sfxPlayer,
+      voicePlayer: voicePlayer,
+    );
+    addTearDown(controller.dispose);
+
+    controller.setHomeRouteForEntryVoice(true);
+    final pendingVoicePlayback = controller.playHomeEntryVoice();
+    controller.setHomeRouteForEntryVoice(false);
+    voicePlayer.completePendingStop();
+    await pendingVoicePlayback;
+
+    expect(voicePlayer.playedAssets, isEmpty);
   });
 
   test('disposes home voice player with other audio players', () async {
@@ -169,4 +190,21 @@ void main() {
     expect(sfxPlayer.disposeCount, equals(1));
     expect(voicePlayer.disposeCount, equals(1));
   });
+}
+
+class _DelayedStopVoicePlayer extends FakeStageVoicePlayer {
+  Completer<void>? _pendingStopCompleter;
+
+  @override
+  Future<void> stop() {
+    final completer = Completer<void>();
+    _pendingStopCompleter ??= completer;
+    stopCount += 1;
+    return completer.future;
+  }
+
+  void completePendingStop() {
+    _pendingStopCompleter?.complete();
+    _pendingStopCompleter = null;
+  }
 }

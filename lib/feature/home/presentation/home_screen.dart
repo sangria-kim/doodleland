@@ -101,7 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
 
     _controller.forward();
-    unawaited(ref.read(stageAudioControllerProvider).playHomeEntryVoice());
+    _scheduleHomeEntryVoicePlayback();
   }
 
   @override
@@ -129,7 +129,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void didPopNext() {
     _controller.forward(from: 0);
-    unawaited(ref.read(stageAudioControllerProvider).playHomeEntryVoice());
+    _scheduleHomeEntryVoicePlayback();
+  }
+
+  void _scheduleHomeEntryVoicePlayback() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final currentPath =
+          GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
+      if (currentPath != '/') {
+        return;
+      }
+
+      final audioController = ref.read(stageAudioControllerProvider);
+      audioController.setHomeRouteForEntryVoice(true);
+      unawaited(audioController.playHomeEntryVoice());
+    });
   }
 
   @override
@@ -290,6 +308,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _startStage(BuildContext context) async {
     unawaited(ref.read(stageAudioControllerProvider).playHomePlayButtonSfx());
+    ref.read(stageAudioControllerProvider).setHomeRouteForEntryVoice(false);
+    await ref.read(stageAudioControllerProvider).stopHomeEntryVoice();
 
     final viewModel = ref.read(libraryViewModelProvider.notifier);
     await viewModel.loadCharacters();

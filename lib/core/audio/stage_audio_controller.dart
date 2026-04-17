@@ -178,6 +178,7 @@ class StageAudioController {
     'forest': 'audio/bgm/bgm_forest_happy_animal_friends.ogg',
     'ocean': 'audio/bgm/bgm_ocean_slow_flowing_ambient.ogg',
     'sky': 'audio/bgm/bgm_sky_puppy_playtime.ogg',
+    'pororo_playground': 'audio/bgm/bgm_pororo.ogg',
   };
 
   final StageBgmPlayer _bgmPlayer;
@@ -186,13 +187,14 @@ class StageAudioController {
   int _homeCreateSfxIndex = 0;
   int _homePlaySfxIndex = 0;
   int _homeEntryVoiceIndex = 0;
+  bool _isHomeRouteForEntryVoice = false;
+  int _homeEntryVoiceRequestId = 0;
 
   static AudioContext get bgmAudioContext => _bgmAudioContext;
   static AudioContext get sfxAudioContext => _sfxAudioContext;
   static AudioContext get voiceAudioContext => _voiceAudioContext;
 
-  String? _currentBgmAsset;
-  bool _isBgmPlaying = false;
+  int _bgmSyncRequestId = 0;
   bool _disposed = false;
 
   Future<void> _initialize() async {
@@ -217,10 +219,19 @@ class StageAudioController {
 
     final normalizedPath = _normalizeRoutePath(path);
     if (normalizedPath == '/stage' || normalizedPath.startsWith('/stage/')) {
+      _isHomeRouteForEntryVoice = false;
+      await _cancelHomeVoice();
+      return;
+    }
+    if (normalizedPath == '/') {
+      _isHomeRouteForEntryVoice = true;
+      await _stopBgm();
       return;
     }
 
+    _isHomeRouteForEntryVoice = false;
     await _stopBgm();
+    await _cancelHomeVoice();
   }
 
   Future<void> syncBackgroundId(String backgroundId) async {
@@ -233,15 +244,19 @@ class StageAudioController {
       await _stopBgm();
       return;
     }
-    if (_isBgmPlaying && _currentBgmAsset == targetAsset) {
-      return;
-    }
+
+    final requestId = ++_bgmSyncRequestId;
 
     try {
       await _bgmPlayer.stop();
+      if (_bgmSyncRequestId != requestId) {
+        return;
+      }
       await _bgmPlayer.playAsset(targetAsset);
-      _currentBgmAsset = targetAsset;
-      _isBgmPlaying = true;
+      if (_bgmSyncRequestId != requestId) {
+        await _bgmPlayer.stop();
+        return;
+      }
     } catch (error, stackTrace) {
       debugPrint('[audio] bgm play failed: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -273,12 +288,28 @@ class StageAudioController {
   }
 
   Future<void> playHomeEntryVoice() async {
+    if (!_isHomeRouteForEntryVoice) {
+      return;
+    }
+
     final index = _homeEntryVoiceIndex % 2;
     _homeEntryVoiceIndex += 1;
     final targetAsset = index == 0
         ? _homeEntryVoiceAsset1
         : _homeEntryVoiceAsset2;
-    await _playVoice(targetAsset);
+    final requestId = ++_homeEntryVoiceRequestId;
+    await _playHomeVoice(targetAsset, requestId);
+  }
+
+  void setHomeRouteForEntryVoice(bool isHomeRoute) {
+    _isHomeRouteForEntryVoice = isHomeRoute;
+    if (!isHomeRoute) {
+      unawaited(_cancelHomeVoice());
+    }
+  }
+
+  Future<void> stopHomeEntryVoice() async {
+    await _cancelHomeVoice();
   }
 
   Future<void> _playSfx(String assetPath) async {
@@ -294,31 +325,51 @@ class StageAudioController {
     }
   }
 
-  Future<void> _playVoice(String assetPath) async {
+  Future<void> _playHomeVoice(String assetPath, int requestId) async {
     if (_disposed) {
       return;
     }
     try {
       await _voicePlayer.stop();
+      if (_disposed ||
+          !_isHomeRouteForEntryVoice ||
+          _homeEntryVoiceRequestId != requestId) {
+        return;
+      }
       await _voicePlayer.playAsset(assetPath);
+      if (_homeEntryVoiceRequestId != requestId || !_isHomeRouteForEntryVoice) {
+        await _voicePlayer.stop();
+      }
     } catch (error, stackTrace) {
       debugPrint('[audio] voice play failed: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
   }
 
-  Future<void> _stopBgm() async {
-    if (_disposed || !_isBgmPlaying) {
+  Future<void> _cancelHomeVoice() async {
+    if (_disposed) {
       return;
     }
+    _homeEntryVoiceRequestId += 1;
 
+    try {
+      await _voicePlayer.stop();
+    } catch (error, stackTrace) {
+      debugPrint('[audio] voice stop failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  Future<void> _stopBgm() async {
+    if (_disposed) {
+      return;
+    }
+    _bgmSyncRequestId += 1;
     try {
       await _bgmPlayer.stop();
     } catch (error, stackTrace) {
       debugPrint('[audio] bgm stop failed: $error');
       debugPrintStack(stackTrace: stackTrace);
-    } finally {
-      _isBgmPlaying = false;
     }
   }
 
