@@ -27,6 +27,13 @@ class AppPalette {
   static const Color textSecondary = Color(0xFF5D6B79);
 }
 
+class AppFontFamilies {
+  const AppFontFamilies._();
+
+  static const String hsYugi = 'HSYugi';
+  static const String yoonChildfundkoreaMinGuk = 'YoonChildfundkoreaMinGuk';
+}
+
 class AppTextStyles {
   const AppTextStyles._();
 

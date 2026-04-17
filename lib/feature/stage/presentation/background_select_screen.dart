@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/presentation/app_back_button.dart';
+import '../../../core/presentation/entry_background_scaffold.dart';
 import '../domain/model/stage_background.dart';
 import 'stage_viewmodel.dart';
 
@@ -13,38 +14,35 @@ class BackgroundSelectScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                16 + AppBackButtonOverlay.contentTopClearance,
-                16,
-                16,
-              ),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.714,
-                ),
-                itemCount: defaultStageBackgrounds.length,
-                itemBuilder: (context, index) {
-                  final background = defaultStageBackgrounds[index];
-                  return _BackgroundCard(
-                    key: ValueKey(background.id),
-                    background: background,
-                    onTap: () => _handleBackgroundTap(context, ref, background),
-                  );
-                },
-              ),
-            ),
+    return EntryBackgroundScaffold(
+      showBackButton: true,
+      onBackPressed: () => _close(context),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            16 + AppBackButtonOverlay.contentTopClearance,
+            16,
+            16,
           ),
-          AppBackButtonOverlay(onPressed: () => _close(context)),
-        ],
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.714,
+            ),
+            itemCount: defaultStageBackgrounds.length,
+            itemBuilder: (context, index) {
+              final background = defaultStageBackgrounds[index];
+              return _BackgroundCard(
+                key: ValueKey(background.id),
+                background: background,
+                onTap: () => _handleBackgroundTap(context, ref, background),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

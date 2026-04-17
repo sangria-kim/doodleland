@@ -137,9 +137,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final gap = _responsiveGap(constraints.maxHeight);
           final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
-          final buttonWidth = _responsiveButtonWidth(constraints.maxWidth, gap);
+          final buttonWidth = _responsiveButtonWidth(
+            constraints.maxWidth.clamp(0.0, 1080.0),
+          );
+          final buttonGap = _responsiveButtonGap(constraints.maxWidth);
           final buttonFont = _responsiveButtonFont(constraints.maxHeight);
           final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
           final buttonYOffset = _responsiveButtonYOffset(constraints.maxHeight);
@@ -201,10 +203,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         offset: Offset(0, buttonYOffset),
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 1080),
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: gap,
-                            runSpacing: gap,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               _HomeActionButtonFrame(
                                 width: buttonWidth,
@@ -217,29 +218,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   onPressed: () => _startCreate(context),
                                 ),
                               ),
-                              _HomeActionButtonFrame(
-                                width: buttonWidth,
-                                height: buttonHeight,
-                                child: _HomeActionButton(
-                                  label: '놀이 시작',
-                                  icon: Icons.play_arrow,
-                                  tonal: true,
-                                  buttonFontSize: buttonFont,
-                                  iconSize: buttonIconSize,
-                                  onPressed: () => _startStage(context),
-                                ),
-                              ),
+                              SizedBox(width: buttonGap),
                               _HomeActionButtonFrame(
                                 width: buttonWidth,
                                 height: buttonHeight,
                                 child: _HomeActionButton(
                                   label: '내 그림',
                                   icon: Icons.photo_library_outlined,
-                                  tonal: true,
-                                  backgroundColor: const Color(0xFF6A9FC7),
+                                  tonal: false,
+                                  backgroundColor: AppPalette.primary,
                                   buttonFontSize: buttonFont,
                                   iconSize: buttonIconSize,
                                   onPressed: () => _openLibrary(context),
+                                ),
+                              ),
+                              SizedBox(width: buttonGap),
+                              _HomeActionButtonFrame(
+                                width: buttonWidth,
+                                height: buttonHeight,
+                                child: _HomeActionButton(
+                                  label: '놀이 시작',
+                                  icon: Icons.play_arrow,
+                                  tonal: false,
+                                  backgroundColor: const Color(0xFFFF6F00),
+                                  buttonFontSize: buttonFont,
+                                  iconSize: buttonIconSize,
+                                  onPressed: () => _startStage(context),
                                 ),
                               ),
                             ],
@@ -261,24 +265,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return (screenHeight / 640).clamp(0.62, 1.0);
   }
 
-  double _responsiveGap(double screenHeight) {
-    final density = _uiDensity(screenHeight);
-    return (16 * density).clamp(10.0, 18.0);
-  }
-
   double _responsiveButtonHeight(double screenHeight) {
-    final density = _uiDensity(screenHeight);
-    return (126 * density).clamp(110.0, 144.0);
+    return screenHeight * 0.20;
   }
 
-  double _responsiveButtonWidth(double screenWidth, double gap) {
-    final available = screenWidth - (gap * 2);
-    return (available / 3).clamp(170.0, 280.0);
+  double _responsiveButtonWidth(double screenWidth) {
+    return screenWidth * 0.25;
+  }
+
+  double _responsiveButtonGap(double screenWidth) {
+    return screenWidth * 0.02;
   }
 
   double _responsiveButtonFont(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (30 * density).clamp(18.0, 30.0);
+    return (32 * density).clamp(19.0, 32.0);
   }
 
   double _responsiveIconSize(double screenHeight) {
@@ -375,7 +376,7 @@ class _HomeActionButton extends StatelessWidget {
     final baseBackground =
         backgroundColor ??
         (isPrimary ? AppPalette.primary : const Color(0xFF53B4A0));
-    final buttonBackground = baseBackground.withValues(alpha: 0.6);
+    final buttonBackground = baseBackground.withValues(alpha: 0.8);
     final buttonForeground = AppPalette.onPrimary;
     final disabledBackground = isPrimary
         ? const Color(0xFFC8CDD2)
@@ -460,8 +461,9 @@ class _HomeActionButtonContent extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
+              fontFamily: AppFontFamilies.yoonChildfundkoreaMinGuk,
               fontSize: buttonFontSize,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.bold,
               height: 1.2,
               letterSpacing: -0.2,
             ),

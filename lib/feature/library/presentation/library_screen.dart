@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/presentation/app_back_button.dart';
 import '../../../core/presentation/character_thumbnail_card.dart';
+import '../../../core/presentation/entry_background_scaffold.dart';
 import '../../../core/theme/app_theme.dart';
 import 'library_viewmodel.dart';
 
@@ -33,47 +34,43 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final state = ref.watch(libraryViewModelProvider);
     final canPop = Navigator.of(context).canPop();
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.pageHorizontal,
-                AppSpacing.pageVertical +
-                    (canPop ? AppBackButtonOverlay.contentTopClearance : 0),
-                AppSpacing.pageHorizontal,
-                AppSpacing.pageVertical,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (state.errorMessage != null) ...[
-                    _LibraryErrorCard(
-                      errorMessage: state.errorMessage!,
-                      isRefreshing: state.isLoading,
-                      onRetry: () => ref
-                          .read(libraryViewModelProvider.notifier)
-                          .loadCharacters(),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Expanded(
-                    child: _LibraryContent(
-                      state: state,
-                      onRefresh: () => ref
-                          .read(libraryViewModelProvider.notifier)
-                          .loadCharacters(),
-                      onTapCharacter: _handleTapCharacter,
-                      onSelectedAction: _handleSelectedAction,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    return EntryBackgroundScaffold(
+      showBackButton: canPop,
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.pageHorizontal,
+            AppSpacing.pageVertical +
+                (canPop ? AppBackButtonOverlay.contentTopClearance : 0),
+            AppSpacing.pageHorizontal,
+            AppSpacing.pageVertical,
           ),
-          if (canPop) const AppBackButtonOverlay(),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (state.errorMessage != null) ...[
+                _LibraryErrorCard(
+                  errorMessage: state.errorMessage!,
+                  isRefreshing: state.isLoading,
+                  onRetry: () => ref
+                      .read(libraryViewModelProvider.notifier)
+                      .loadCharacters(),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Expanded(
+                child: _LibraryContent(
+                  state: state,
+                  onRefresh: () => ref
+                      .read(libraryViewModelProvider.notifier)
+                      .loadCharacters(),
+                  onTapCharacter: _handleTapCharacter,
+                  onSelectedAction: _handleSelectedAction,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

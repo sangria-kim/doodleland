@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/presentation/app_back_button.dart';
+import '../../../core/presentation/entry_background_scaffold.dart';
 import '../../../core/theme/app_theme.dart';
 import 'capture_viewmodel.dart';
 
@@ -13,13 +14,9 @@ class CaptureScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final canPop = Navigator.of(context).canPop();
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          _CaptureScreenBody(showBackButton: canPop),
-          if (canPop) const AppBackButtonOverlay(),
-        ],
-      ),
+    return EntryBackgroundScaffold(
+      showBackButton: canPop,
+      body: _CaptureScreenBody(showBackButton: canPop),
     );
   }
 }
@@ -44,9 +41,12 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
           final mediaQuery = MediaQuery.of(context);
           final buttonHeight = _responsiveButtonHeight(constraints.maxHeight);
           final gap = _responsiveGap(constraints.maxHeight);
+          final buttonGap = _responsiveButtonGap(constraints.maxWidth);
           final buttonFont = _responsiveButtonFont(constraints.maxHeight);
           final buttonIconSize = _responsiveIconSize(constraints.maxHeight);
-          final buttonWidth = _responsiveButtonWidth(constraints.maxWidth, gap);
+          final actionButtonWidth = _responsiveActionButtonWidth(
+            constraints.maxWidth,
+          );
 
           return AnimatedPadding(
             duration: const Duration(milliseconds: 180),
@@ -76,9 +76,9 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           SizedBox(
-                            width: buttonWidth,
+                            width: actionButtonWidth,
                             height: buttonHeight,
-                            child: _SourceButton(
+                            child: _CaptureActionButton(
                               label: '카메라로 찍기',
                               icon: Icons.camera_alt,
                               buttonFontSize: buttonFont,
@@ -91,11 +91,11 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                                     ),
                             ),
                           ),
-                          SizedBox(width: gap),
+                          SizedBox(width: buttonGap),
                           SizedBox(
-                            width: buttonWidth,
+                            width: actionButtonWidth,
                             height: buttonHeight,
-                            child: _SourceButton(
+                            child: _CaptureActionButton(
                               label: '갤러리에서 선택',
                               icon: Icons.photo_library,
                               buttonFontSize: buttonFont,
@@ -130,8 +130,7 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
   }
 
   double _responsiveButtonHeight(double screenHeight) {
-    final density = _uiDensity(screenHeight);
-    return (88 * density * 2).clamp(124.0, 196.0);
+    return screenHeight * 0.20;
   }
 
   double _responsiveGap(double screenHeight) {
@@ -141,12 +140,15 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
 
   double _responsiveButtonFont(double screenHeight) {
     final density = _uiDensity(screenHeight);
-    return (30 * density).clamp(18.0, 30.0);
+    return (32 * density).clamp(19.0, 32.0);
   }
 
-  double _responsiveButtonWidth(double screenWidth, double gap) {
-    final available = (screenWidth - gap);
-    return (available * 0.35).clamp(180.0, 420.0);
+  double _responsiveActionButtonWidth(double screenWidth) {
+    return screenWidth.clamp(0.0, 1080.0) * 0.25;
+  }
+
+  double _responsiveButtonGap(double screenWidth) {
+    return screenWidth * 0.02;
   }
 
   double _responsiveIconSize(double screenHeight) {
@@ -166,8 +168,8 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
   }
 }
 
-class _SourceButton extends StatelessWidget {
-  const _SourceButton({
+class _CaptureActionButton extends StatelessWidget {
+  const _CaptureActionButton({
     required this.label,
     required this.icon,
     required this.onPressed,
@@ -184,6 +186,8 @@ class _SourceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEnabled = onPressed != null;
+    final baseBackground = AppPalette.primary;
+    final buttonBackground = baseBackground.withValues(alpha: 0.8);
 
     return Material(
       color: Colors.transparent,
@@ -194,7 +198,7 @@ class _SourceButton extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            color: isEnabled ? AppPalette.primary : const Color(0xFFC8CDD2),
+            color: isEnabled ? buttonBackground : const Color(0xFFC8CDD2),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.26),
               width: 1.5,
@@ -232,8 +236,11 @@ class _SourceButton extends StatelessWidget {
                       color: isEnabled
                           ? AppPalette.onPrimary
                           : AppPalette.onPrimary.withValues(alpha: 0.55),
+                      fontFamily: AppFontFamilies.yoonChildfundkoreaMinGuk,
                       fontSize: buttonFontSize,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ],
