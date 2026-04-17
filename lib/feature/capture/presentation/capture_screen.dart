@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/presentation/app_back_button.dart';
 import '../../../core/presentation/entry_background_scaffold.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/presentation/menu_action_button.dart';
 import 'capture_viewmodel.dart';
 
 class CaptureScreen extends ConsumerWidget {
@@ -78,11 +79,14 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                           SizedBox(
                             width: actionButtonWidth,
                             height: buttonHeight,
-                            child: _CaptureActionButton(
+                            child: MenuActionButton(
                               label: '카메라로 찍기',
                               icon: Icons.camera_alt,
                               buttonFontSize: buttonFont,
                               buttonIconSize: buttonIconSize,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               onPressed: state.isBusy
                                   ? null
                                   : () => _onPick(
@@ -95,11 +99,14 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
                           SizedBox(
                             width: actionButtonWidth,
                             height: buttonHeight,
-                            child: _CaptureActionButton(
+                            child: MenuActionButton(
                               label: '갤러리에서 선택',
                               icon: Icons.photo_library,
                               buttonFontSize: buttonFont,
                               buttonIconSize: buttonIconSize,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               onPressed: state.isBusy
                                   ? null
                                   : () => _onPick(
@@ -165,91 +172,6 @@ class _CaptureScreenBodyState extends ConsumerState<_CaptureScreenBody> {
     ref.read(captureViewModelProvider.notifier).clearFeedback();
     if (!context.mounted) return;
     context.push('/capture/crop', extra: cropArgs);
-  }
-}
-
-class _CaptureActionButton extends StatelessWidget {
-  const _CaptureActionButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    required this.buttonFontSize,
-    required this.buttonIconSize,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final double buttonFontSize;
-  final double buttonIconSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = onPressed != null;
-    final baseBackground = AppPalette.primary;
-    final buttonBackground = baseBackground.withValues(alpha: 0.8);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(30),
-        splashColor: AppPalette.primary.withValues(alpha: 0.16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            color: isEnabled ? buttonBackground : const Color(0xFFC8CDD2),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.26),
-              width: 1.5,
-            ),
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color: AppPalette.primary.withValues(alpha: 0.26),
-                      blurRadius: 14,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: SizedBox.expand(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: buttonIconSize,
-                    color: isEnabled
-                        ? AppPalette.onPrimary
-                        : AppPalette.onPrimary.withValues(alpha: 0.55),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isEnabled
-                          ? AppPalette.onPrimary
-                          : AppPalette.onPrimary.withValues(alpha: 0.55),
-                      fontFamily: AppFontFamilies.yoonChildfundkoreaMinGuk,
-                      fontSize: buttonFontSize,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

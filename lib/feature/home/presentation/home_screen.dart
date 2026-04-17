@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/audio/stage_audio_controller.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/presentation/menu_action_button.dart';
 import '../../../router/app_router.dart';
 import '../../library/presentation/library_viewmodel.dart';
 
@@ -207,42 +207,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _HomeActionButtonFrame(
+                              SizedBox(
                                 width: buttonWidth,
                                 height: buttonHeight,
-                                child: _HomeActionButton(
+                                child: MenuActionButton(
                                   label: '그림 만들기',
                                   icon: Icons.edit,
                                   buttonFontSize: buttonFont,
-                                  iconSize: buttonIconSize,
+                                  buttonIconSize: buttonIconSize,
                                   onPressed: () => _startCreate(context),
                                 ),
                               ),
                               SizedBox(width: buttonGap),
-                              _HomeActionButtonFrame(
+                              SizedBox(
                                 width: buttonWidth,
                                 height: buttonHeight,
-                                child: _HomeActionButton(
+                                child: MenuActionButton(
                                   label: '내 그림',
                                   icon: Icons.photo_library_outlined,
-                                  tonal: false,
-                                  backgroundColor: AppPalette.primary,
                                   buttonFontSize: buttonFont,
-                                  iconSize: buttonIconSize,
+                                  buttonIconSize: buttonIconSize,
                                   onPressed: () => _openLibrary(context),
                                 ),
                               ),
                               SizedBox(width: buttonGap),
-                              _HomeActionButtonFrame(
+                              SizedBox(
                                 width: buttonWidth,
                                 height: buttonHeight,
-                                child: _HomeActionButton(
+                                child: MenuActionButton(
                                   label: '놀이 시작',
                                   icon: Icons.play_arrow,
-                                  tonal: false,
                                   backgroundColor: const Color(0xFFFF6F00),
                                   buttonFontSize: buttonFont,
-                                  iconSize: buttonIconSize,
+                                  buttonIconSize: buttonIconSize,
                                   onPressed: () => _startStage(context),
                                 ),
                               ),
@@ -329,147 +326,5 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     context.push('/library');
-  }
-}
-
-class _HomeActionButtonFrame extends StatelessWidget {
-  const _HomeActionButtonFrame({
-    required this.width,
-    required this.height,
-    required this.child,
-  });
-
-  final double width;
-  final double height;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(width: width, height: height, child: child);
-  }
-}
-
-class _HomeActionButton extends StatelessWidget {
-  const _HomeActionButton({
-    required this.label,
-    required this.icon,
-    required this.buttonFontSize,
-    required this.iconSize,
-    this.onPressed,
-    this.tonal = false,
-    this.backgroundColor,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final bool tonal;
-  final Color? backgroundColor;
-  final double buttonFontSize;
-  final double iconSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = onPressed != null;
-    final isPrimary = !tonal;
-    final borderRadius = BorderRadius.circular(30);
-    final baseBackground =
-        backgroundColor ??
-        (isPrimary ? AppPalette.primary : const Color(0xFF53B4A0));
-    final buttonBackground = baseBackground.withValues(alpha: 0.8);
-    final buttonForeground = AppPalette.onPrimary;
-    final disabledBackground = isPrimary
-        ? const Color(0xFFC8CDD2)
-        : const Color(0xFFDDE3E6);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: borderRadius,
-        splashColor: AppPalette.primary.withValues(alpha: 0.16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: borderRadius,
-            color: isEnabled ? buttonBackground : disabledBackground,
-            border: Border.all(
-              color: isPrimary
-                  ? Colors.white.withValues(alpha: 0.26)
-                  : Colors.white.withValues(alpha: 0.30),
-              width: isPrimary ? 1.5 : 1.2,
-            ),
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color:
-                          (isPrimary
-                                  ? AppPalette.primary
-                                  : AppPalette.textSecondary)
-                              .withValues(alpha: 0.26),
-                      blurRadius: 14,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: SizedBox.expand(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _HomeActionButtonContent(
-                icon: icon,
-                label: label,
-                buttonFontSize: buttonFontSize,
-                iconSize: iconSize,
-                color: buttonForeground.withValues(alpha: isEnabled ? 1 : 0.55),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeActionButtonContent extends StatelessWidget {
-  const _HomeActionButtonContent({
-    required this.icon,
-    required this.label,
-    required this.buttonFontSize,
-    required this.iconSize,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final double buttonFontSize;
-  final double iconSize;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: iconSize, color: color),
-        const SizedBox(width: 12),
-        Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontFamily: AppFontFamilies.yoonChildfundkoreaMinGuk,
-              fontSize: buttonFontSize,
-              fontWeight: FontWeight.bold,
-              height: 1.2,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
