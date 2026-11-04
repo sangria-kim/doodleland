@@ -6,8 +6,6 @@ import '../../../core/database/character_dao.dart';
 abstract class CharacterRepository {
   Future<List<Character>> getCharacters();
 
-  Future<Character> getCharacterById(int id);
-
   Future<int> saveCharacter({
     required String name,
     required String originalImagePath,
@@ -27,15 +25,6 @@ class CharacterRepositoryImpl implements CharacterRepository {
 
   @override
   Future<List<Character>> getCharacters() => _dao.getAllCharacters();
-
-  @override
-  Future<Character> getCharacterById(int id) {
-    return _dao
-        .getCharacterById(id)
-        .then(
-          (character) => character ?? (throw StateError('character not found')),
-        );
-  }
 
   @override
   Future<int> saveCharacter({

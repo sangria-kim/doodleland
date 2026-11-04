@@ -470,9 +470,6 @@ class _FakeStageRepository extends SceneRepository {
 
   @override
   StageBackground get defaultBackground => _background;
-
-  @override
-  List<StageBackground> get availableBackgrounds => [_background];
 }
 
 Character _buildCharacter({required int id, required String name}) {

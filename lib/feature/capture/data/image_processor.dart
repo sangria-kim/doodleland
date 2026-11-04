@@ -16,8 +16,6 @@ class EditableImageData {
   final Uint8List bytes;
   final int width;
   final int height;
-
-  double get aspectRatio => width / height;
 }
 
 class ImageProcessor {

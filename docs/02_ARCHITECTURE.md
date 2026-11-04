@@ -65,22 +65,19 @@ lib/
 │       │   └── place_character_usecase.dart
 │       └── presentation/
 │           ├── background_select_screen.dart
-│           ├── stage_painter.dart
+│           ├── character_placement_flow_screen.dart
+│           ├── character_placement_selection.dart
 │           ├── stage_screen.dart
 │           ├── stage_viewmodel.dart
 │           └── widget/
-│               ├── background_selector.dart
-│               ├── character_selector.dart
 │               └── motion_selector.dart
 └── router/
     └── app_router.dart
 ```
 
 ## 구현 상태 메모
-- `stage_painter.dart`
-- `background_selector.dart`
-
-위 2개 파일은 현재 placeholder 상태이며 실제 흐름에서 사용되지 않습니다.
+- `CharacterPlacementFlowScreen`은 캐릭터 선택과 모션 선택을 담당합니다.
+- `CharacterPlacementSelection`은 확정된 캐릭터와 모션을 무대로 반환합니다.
 
 ## 핵심 데이터 모델
 
@@ -288,11 +285,12 @@ DAO / File System / 이미지 처리
 | `/capture/crop` | `CropScreen` | 자동 인식 결과를 반영한 크롭 편집 |
 | `/capture/preview` | `PreviewScreen` | 저장 전 크롭 결과 확인 |
 | `/stage/background` | `BackgroundSelectScreen` | 배경 선택 |
+| `/stage/character-placement` | `CharacterPlacementFlowScreen` | 캐릭터·모션 선택 후 확정 |
 | `/stage` | `StageScreen` | 무대 |
 
 추가 메모:
 - `LibraryScreen`은 홈의 `내 그림` 버튼에서 진입하는 전용 관리 화면입니다.
-- 무대에서 캐릭터 추가는 `CharacterSelector` 바텀시트로 처리합니다.
+- 무대에서 캐릭터 추가는 `/stage/character-placement`의 `CharacterPlacementFlowScreen`에서 처리합니다. 취소는 결과 없이 돌아갑니다.
 - `/capture/crop` 이동 시 `extra`는 `CropScreenArgs`를 사용하며 `sourceImagePath`와 `detectionResult`를 함께 전달합니다.
 
 ## 의존성 주입

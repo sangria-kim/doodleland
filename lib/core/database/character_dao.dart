@@ -35,12 +35,6 @@ class CharacterDao extends DatabaseAccessor<AppDatabase> {
     return query.get();
   }
 
-  Future<Character?> getCharacterById(int id) {
-    final query = _database.select(_database.characters)
-      ..where((character) => character.id.equals(id));
-    return query.getSingleOrNull();
-  }
-
   Future<bool> deleteCharacter(int id) async {
     final rows = await (_database.delete(
       _database.characters,

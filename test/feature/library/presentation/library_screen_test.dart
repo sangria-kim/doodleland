@@ -25,11 +25,6 @@ class _FakeCharacterRepository implements CharacterRepository {
   }
 
   @override
-  Future<Character> getCharacterById(int id) async {
-    return _characters.firstWhere((character) => character.id == id);
-  }
-
-  @override
   Future<int> saveCharacter({
     required String name,
     required String originalImagePath,

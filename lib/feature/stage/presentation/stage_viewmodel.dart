@@ -174,20 +174,8 @@ class StageViewModel extends StateNotifier<StageState> {
     return true;
   }
 
-  bool completeCharacterRemoval(String instanceId) {
-    final found = state.placedCharacters.any(
-      (character) => character.instanceId == instanceId,
-    );
-    if (!found) {
-      return false;
-    }
-
-    final remaining = state.placedCharacters
-        .where((character) => character.instanceId != instanceId)
-        .toList(growable: false);
-    state = state.copyWith(placedCharacters: remaining, errorMessage: null);
-    return true;
-  }
+  bool completeCharacterRemoval(String instanceId) =>
+      removeCharacter(instanceId);
 
   void clearError() {
     state = state.copyWith(errorMessage: null);

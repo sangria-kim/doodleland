@@ -10,29 +10,15 @@ import '../domain/save_character_usecase.dart';
 import 'crop_screen_args.dart';
 
 class CaptureState {
-  const CaptureState({
-    this.isBusy = false,
-    this.selectedImagePath,
-    this.feedbackMessage,
-    this.lastSavedId,
-  });
+  const CaptureState({this.isBusy = false, this.feedbackMessage});
 
   final bool isBusy;
-  final String? selectedImagePath;
   final String? feedbackMessage;
-  final int? lastSavedId;
 
-  CaptureState copyWith({
-    bool? isBusy,
-    String? selectedImagePath,
-    String? feedbackMessage,
-    int? lastSavedId,
-  }) {
+  CaptureState copyWith({bool? isBusy, String? feedbackMessage}) {
     return CaptureState(
       isBusy: isBusy ?? this.isBusy,
-      selectedImagePath: selectedImagePath ?? this.selectedImagePath,
       feedbackMessage: feedbackMessage,
-      lastSavedId: lastSavedId ?? this.lastSavedId,
     );
   }
 
@@ -97,11 +83,7 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
       return null;
     }
 
-    state = state.copyWith(
-      isBusy: false,
-      selectedImagePath: pickedFile.path,
-      feedbackMessage: null,
-    );
+    state = state.copyWith(isBusy: false, feedbackMessage: null);
     return pickedFile.path;
   }
 
@@ -113,8 +95,6 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
       final result = await _saveCharacterUseCase(sourceImagePath: imagePath);
       state = state.copyWith(
         isBusy: false,
-        selectedImagePath: imagePath,
-        lastSavedId: result.characterId,
         feedbackMessage: result.qualityWarningMessage,
       );
       return result;
@@ -137,10 +117,7 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
     try {
       final bytes = await File(selectedImagePath).readAsBytes();
       final detectionResult = await _drawingRegionDetector.detect(bytes);
-      state = state.copyWith(
-        isBusy: false,
-        selectedImagePath: selectedImagePath,
-      );
+      state = state.copyWith(isBusy: false);
       return CropScreenArgs(
         sourceImagePath: selectedImagePath,
         detectionResult: detectionResult,
@@ -148,7 +125,6 @@ class CaptureViewModel extends StateNotifier<CaptureState> {
     } catch (_) {
       state = state.copyWith(
         isBusy: false,
-        selectedImagePath: selectedImagePath,
         feedbackMessage: recognitionFailureMessage,
       );
       return CropScreenArgs(

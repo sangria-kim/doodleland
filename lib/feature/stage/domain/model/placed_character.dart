@@ -43,7 +43,6 @@ class PlacedCharacter {
   final PlacedCharacterRemovalState removalState;
 
   Offset get position => stageRuntime.position;
-  bool get isFlippedHorizontally => stageRuntime.isFlippedHorizontally;
 
   PlacedCharacter copyWith({
     String? instanceId,

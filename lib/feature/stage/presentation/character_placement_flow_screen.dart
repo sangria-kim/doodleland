@@ -11,7 +11,7 @@ import '../../../core/presentation/character_thumbnail_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../library/presentation/library_viewmodel.dart';
 import '../domain/model/motion_preset.dart';
-import 'widget/character_selector.dart';
+import 'character_placement_selection.dart';
 import 'widget/motion_selector.dart';
 
 enum _PlacementStep { character, motion }

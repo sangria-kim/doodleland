@@ -16,13 +16,6 @@ class _FakeCharacterRepository implements CharacterRepository {
   final List<Character> characters;
 
   @override
-  Future<Character> getCharacterById(int id) {
-    return Future.value(
-      characters.firstWhere((character) => character.id == id),
-    );
-  }
-
-  @override
   Future<List<Character>> getCharacters() async {
     return List.unmodifiable(characters);
   }
@@ -272,8 +265,14 @@ void main() {
     expect((yPositions[0] - yPositions[2]).abs(), lessThan(1.0));
     expect(xPositions[0] < xPositions[1], isTrue);
     expect(xPositions[1] < xPositions[2], isTrue);
-    expect((xPositions[1] - xPositions[0] - expectedWidth).abs(), closeTo(expectedGap, 1.0));
-    expect((xPositions[2] - xPositions[1] - expectedWidth).abs(), closeTo(expectedGap, 1.0));
+    expect(
+      (xPositions[1] - xPositions[0] - expectedWidth).abs(),
+      closeTo(expectedGap, 1.0),
+    );
+    expect(
+      (xPositions[2] - xPositions[1] - expectedWidth).abs(),
+      closeTo(expectedGap, 1.0),
+    );
   });
 
   testWidgets('plays home entry voice on first render only once', (

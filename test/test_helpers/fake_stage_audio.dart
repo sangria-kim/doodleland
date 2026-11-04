@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:doodleland/core/audio/stage_audio_controller.dart';
 
 class FakeStageBgmPlayer implements StageBgmPlayer {
@@ -84,5 +86,40 @@ class FakeStageVoicePlayer implements StageVoicePlayer {
   @override
   Future<void> stop() async {
     stopCount += 1;
+  }
+}
+
+// Tests explicitly release a player call to exercise ordering without timers.
+class ControlledStageBgmPlayer extends FakeStageBgmPlayer {
+  Completer<void>? stopGate;
+  Completer<void>? playGate;
+  final playStarted = StreamController<String>.broadcast(sync: true);
+  bool failNextPlay = false;
+  String? currentAsset;
+
+  @override
+  Future<void> stop() async {
+    stopCount += 1;
+    await stopGate?.future;
+    currentAsset = null;
+  }
+
+  @override
+  Future<void> playAsset(String assetPath) async {
+    playedAssets.add(assetPath);
+    playStarted.add(assetPath);
+    await playGate?.future;
+    if (failNextPlay) {
+      failNextPlay = false;
+      throw StateError('controlled play failure');
+    }
+    currentAsset = assetPath;
+  }
+
+  @override
+  Future<void> dispose() async {
+    currentAsset = null;
+    await playStarted.close();
+    await super.dispose();
   }
 }

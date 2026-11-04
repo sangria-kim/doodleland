@@ -1,3 +1,0 @@
-class StagePainter {
-  const StagePainter();
-}

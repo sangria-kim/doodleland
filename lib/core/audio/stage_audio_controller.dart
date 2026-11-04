@@ -195,6 +195,8 @@ class StageAudioController {
   static AudioContext get voiceAudioContext => _voiceAudioContext;
 
   int _bgmSyncRequestId = 0;
+  String? _requestedBgmAsset;
+  Future<void>? _bgmOperation;
   bool _disposed = false;
 
   Future<void> _initialize() async {
@@ -245,22 +247,25 @@ class StageAudioController {
       return;
     }
 
-    final requestId = ++_bgmSyncRequestId;
-
-    try {
-      await _bgmPlayer.stop();
-      if (_bgmSyncRequestId != requestId) {
-        return;
-      }
-      await _bgmPlayer.playAsset(targetAsset);
-      if (_bgmSyncRequestId != requestId) {
-        await _bgmPlayer.stop();
-        return;
-      }
-    } catch (error, stackTrace) {
-      debugPrint('[audio] bgm play failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
+    if (_requestedBgmAsset == targetAsset) {
+      final pending = _bgmOperation;
+      if (pending != null) await pending;
+      return;
     }
+    _requestedBgmAsset = targetAsset;
+    final requestId = ++_bgmSyncRequestId;
+    await _queueBgmOperation(() async {
+      if (_disposed || _bgmSyncRequestId != requestId) return;
+      try {
+        await _bgmPlayer.stop();
+        if (_disposed || _bgmSyncRequestId != requestId) return;
+        await _bgmPlayer.playAsset(targetAsset);
+      } catch (error, stackTrace) {
+        if (_bgmSyncRequestId == requestId) _requestedBgmAsset = null;
+        debugPrint('[audio] bgm play failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    });
   }
 
   Future<void> playSpawnSfx() async {
@@ -365,12 +370,31 @@ class StageAudioController {
       return;
     }
     _bgmSyncRequestId += 1;
-    try {
-      await _bgmPlayer.stop();
-    } catch (error, stackTrace) {
-      debugPrint('[audio] bgm stop failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
-    }
+    _requestedBgmAsset = null;
+    // Serialize player calls so an old play cannot finish after a newer stop/play.
+    await _queueBgmOperation(() async {
+      if (_disposed) return;
+      try {
+        await _bgmPlayer.stop();
+      } catch (error, stackTrace) {
+        debugPrint('[audio] bgm stop failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    });
+  }
+
+  Future<void> _queueBgmOperation(Future<void> Function() action) {
+    final previous = _bgmOperation;
+    late final Future<void> operation;
+    operation =
+        (() async {
+          if (previous != null) await previous;
+          await action();
+        })().whenComplete(() {
+          if (identical(_bgmOperation, operation)) _bgmOperation = null;
+        });
+    _bgmOperation = operation;
+    return operation;
   }
 
   String _normalizeRoutePath(String path) {
@@ -389,6 +413,10 @@ class StageAudioController {
       return;
     }
     _disposed = true;
+    _bgmSyncRequestId += 1;
+    _requestedBgmAsset = null;
+    final pending = _bgmOperation;
+    if (pending != null) await pending;
     await Future.wait<void>([
       _bgmPlayer.dispose(),
       _sfxPlayer.dispose(),

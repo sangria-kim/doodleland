@@ -30,7 +30,6 @@ class AppPalette {
 class AppFontFamilies {
   const AppFontFamilies._();
 
-  static const String hsYugi = 'HSYugi';
   static const String yoonChildfundkoreaMinGuk = 'YoonChildfundkoreaMinGuk';
 }
 

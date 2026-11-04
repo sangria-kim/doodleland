@@ -20,9 +20,6 @@ class FakeCharacterRepository implements CharacterRepository {
       _characters.values.toList(growable: false);
 
   @override
-  Future<Character> getCharacterById(int id) async => _characters[id]!;
-
-  @override
   Future<int> saveCharacter({
     required String name,
     required String originalImagePath,

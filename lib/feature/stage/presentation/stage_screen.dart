@@ -13,7 +13,7 @@ import '../domain/model/motion_preset.dart';
 import '../domain/model/stage_motion.dart';
 import '../domain/model/stage_motion_engine.dart';
 import 'stage_viewmodel.dart';
-import 'widget/character_selector.dart';
+import 'character_placement_selection.dart';
 
 class _StageEffectConfig {
   static const int entranceDurationMs = 800;

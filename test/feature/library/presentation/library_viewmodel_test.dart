@@ -20,10 +20,6 @@ class _FakeCharacterRepository implements CharacterRepository {
       List<Character>.unmodifiable(_characters);
 
   @override
-  Future<Character> getCharacterById(int id) async =>
-      _characters.firstWhere((character) => character.id == id);
-
-  @override
   Future<int> saveCharacter({
     required String name,
     required String originalImagePath,

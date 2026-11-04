@@ -138,8 +138,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return;
       }
 
-      final currentPath =
-          GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
+      final currentPath = GoRouter.of(
+        context,
+      ).routerDelegate.currentConfiguration.uri.path;
       if (currentPath != '/') {
         return;
       }

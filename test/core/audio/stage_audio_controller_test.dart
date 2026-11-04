@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:doodleland/core/audio/stage_audio_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -103,6 +105,133 @@ void main() {
 
     expect(bgmPlayer.stopCount, equals(1));
   });
+
+  test('coalesces the same pending background request', () async {
+    final player = ControlledStageBgmPlayer()..stopGate = Completer<void>();
+    final controller = StageAudioController(
+      bgmPlayer: player,
+      sfxPlayer: FakeStageSfxPlayer(),
+      voicePlayer: FakeStageVoicePlayer(),
+    );
+    addTearDown(controller.dispose);
+    final first = controller.syncBackgroundId('forest');
+    final duplicate = controller.syncBackgroundId('forest');
+    player.stopGate!.complete();
+    await Future.wait([first, duplicate]);
+    expect(player.stopCount, 1);
+    expect(player.playedAssets, [
+      'audio/bgm/bgm_forest_happy_animal_friends.ogg',
+    ]);
+  });
+
+  test('serializes a newer background after a pending play', () async {
+    final player = ControlledStageBgmPlayer()..playGate = Completer<void>();
+    final controller = StageAudioController(
+      bgmPlayer: player,
+      sfxPlayer: FakeStageSfxPlayer(),
+      voicePlayer: FakeStageVoicePlayer(),
+    );
+    addTearDown(controller.dispose);
+    final started = player.playStarted.stream.first;
+    final first = controller.syncBackgroundId('forest');
+    await started;
+    final second = controller.syncBackgroundId('sky');
+    player.playGate!.complete();
+    await Future.wait([first, second]);
+    expect(player.playedAssets, [
+      'audio/bgm/bgm_forest_happy_animal_friends.ogg',
+      'audio/bgm/bgm_sky_puppy_playtime.ogg',
+    ]);
+    expect(player.currentAsset, 'audio/bgm/bgm_sky_puppy_playtime.ogg');
+    expect(player.stopCount, 2);
+  });
+
+  for (final leaveStage in [false, true]) {
+    test(
+      'cancels pending play on ${leaveStage ? 'route exit' : 'silent background'} and permits reentry',
+      () async {
+        final player = ControlledStageBgmPlayer()..playGate = Completer<void>();
+        final controller = StageAudioController(
+          bgmPlayer: player,
+          sfxPlayer: FakeStageSfxPlayer(),
+          voicePlayer: FakeStageVoicePlayer(),
+        );
+        addTearDown(controller.dispose);
+        final started = player.playStarted.stream.first;
+        final playing = controller.syncBackgroundId('forest');
+        await started;
+        final stopping = leaveStage
+            ? controller.syncRoutePath('/capture')
+            : controller.syncBackgroundId('starry_night');
+        player.playGate!.complete();
+        await Future.wait([playing, stopping]);
+        expect(player.currentAsset, isNull);
+        await controller.syncBackgroundId('forest');
+        expect(player.playedAssets.length, 2);
+        expect(
+          player.currentAsset,
+          'audio/bgm/bgm_forest_happy_animal_friends.ogg',
+        );
+      },
+    );
+  }
+
+  test('retries the same background after a failed play', () async {
+    final player = ControlledStageBgmPlayer()..failNextPlay = true;
+    final controller = StageAudioController(
+      bgmPlayer: player,
+      sfxPlayer: FakeStageSfxPlayer(),
+      voicePlayer: FakeStageVoicePlayer(),
+    );
+    addTearDown(controller.dispose);
+    await controller.syncBackgroundId('forest');
+    expect(player.currentAsset, isNull);
+    await controller.syncBackgroundId('forest');
+    expect(player.playedAssets.length, 2);
+    expect(
+      player.currentAsset,
+      'audio/bgm/bgm_forest_happy_animal_friends.ogg',
+    );
+  });
+
+  test('dispose invalidates pending stop and ignores later calls', () async {
+    final player = ControlledStageBgmPlayer()..stopGate = Completer<void>();
+    final controller = StageAudioController(
+      bgmPlayer: player,
+      sfxPlayer: FakeStageSfxPlayer(),
+      voicePlayer: FakeStageVoicePlayer(),
+    );
+    final pending = controller.syncBackgroundId('forest');
+    // Let the queued operation enter stop before disposing.
+    await Future<void>.value();
+    final disposing = controller.dispose();
+    player.stopGate!.complete();
+    await Future.wait([pending, disposing]);
+    await controller.syncBackgroundId('sky');
+    expect(player.playedAssets, isEmpty);
+    expect(player.disposeCount, 1);
+  });
+
+  test(
+    'dispose waits for an in-flight play before releasing the player',
+    () async {
+      final player = ControlledStageBgmPlayer()..playGate = Completer<void>();
+      final controller = StageAudioController(
+        bgmPlayer: player,
+        sfxPlayer: FakeStageSfxPlayer(),
+        voicePlayer: FakeStageVoicePlayer(),
+      );
+      final started = player.playStarted.stream.first;
+      final pending = controller.syncBackgroundId('forest');
+      await started;
+      final disposing = controller.dispose();
+      expect(player.disposeCount, 0);
+      player.playGate!.complete();
+      await Future.wait([pending, disposing]);
+      expect(player.currentAsset, isNull);
+      expect(player.disposeCount, 1);
+    },
+  );
 
   test('plays spawn and remove sfx', () async {
     final bgmPlayer = FakeStageBgmPlayer();
