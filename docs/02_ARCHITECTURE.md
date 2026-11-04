@@ -317,3 +317,14 @@ DAO / File System / 이미지 처리
 - 홈, 캡처, 스테이지 문서는 Clean Architecture 개념을 따르지만 stage 쪽은 현재 repository 추상화보다 in-memory 상태 관리 비중이 큽니다.
 - 저장 전 미리보기 화면은 실제 투명 PNG가 아니라 크롭된 원본 이미지를 보여줍니다.
 - stage 렌더링은 `CustomPainter`가 아니라 개별 위젯의 `GestureDetector`와 `Transform` 조합입니다.
+
+## 공유 놀이 설정 (F05)
+
+- `core/settings/domain/PlaySettings`는 BGM·효과음·안내 음성·장식 감소 네 boolean의 불변 값이다. `SettingsRepository` 추상 인터페이스와 `FileSettingsRepository` 구현을 분리한다.
+- `main.bootstrapSettings`가 설정을 읽은 뒤 단 하나의 `ProviderScope`에 초기 결과를 주입한다. 홈 첫 프레임 이전에 저장된 음소거/장식 감소가 적용된다.
+- 앱 범위 `SettingsViewModel`은 메모리 선택을 즉시 갱신하고 전체 스냅샷 저장을 직렬 처리한다. 오래된 쓰기 성공/실패가 최신 선택을 되돌리거나 저장 완료로 표시하지 않는다. 화면을 닫거나 background로 가도 저장은 계속된다.
+- 문서 디렉토리 `play_settings.json`에 `schema: 1`과 네 값만 저장한다. 같은 디렉토리의 임시 파일에 flush 후 rename하며 이전 유효 파일을 먼저 삭제하지 않는다. 읽기 실패는 기본값과 복원 오류를 제공하고 원본을 자동 덮어쓰지 않는다.
+- `ParentSettingsDialog`는 공유 ViewModel만 의존한다. core는 feature에 의존하지 않으며 라우터에 새 경로를 추가하지 않는다.
+- `StageAudioController`는 BGM, 순수 효과음(spawn/remove), 안내 음성(홈 인사/버튼)을 논리적으로 구분한다. 홈 버튼 말소리는 기존 SFX player를 사용하되 안내 음성 설정에 따른다. 세 물리 채널의 호출을 각각 직렬화하고 취소 세대를 검사하여 mute/background/route/dispose 후 지연 재생이 남지 않게 한다.
+- 앱은 라우트와 lifecycle를 동기화한다. resumed 이외에는 모든 소리를 중단하고 복귀 시 현재 무대 배경의 허용된 BGM만 다시 평가한다. 단발 음성/효과음을 자동 재생하지 않는다.
+- 감소 효과는 홈 장식 controller를 최종 상태로 보내고 confetti 위젯/ticker를 해제한다. 등장 완료는 이미지 준비 후 한 번만 통지하며 removing을 우선한다. 캐릭터 모션·탭·드래그·제거와 10개 제한은 유지한다.

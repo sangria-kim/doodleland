@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/audio/stage_audio_controller.dart';
+import '../../../core/settings/presentation/settings_viewmodel.dart';
+import '../../settings/presentation/parent_settings_dialog.dart';
 import '../domain/model/placed_character.dart';
 import '../domain/model/motion_preset.dart';
 import '../domain/model/stage_motion.dart';
@@ -137,16 +139,18 @@ class _StageScreenState extends ConsumerState<StageScreen> {
       for (final character in addedCharacters) {
         final objectSize = _characterDisplaySize(character);
         _pendingEntranceInstanceIds.add(character.instanceId);
-        _pendingConfettiBursts.add(
-          _ConfettiBurstRequest(
-            id: _nextConfettiBurstId++,
-            normalizedX: character.position.dx.clamp(0.08, 0.92).toDouble(),
-            normalizedY: character.position.dy.clamp(0.08, 0.92).toDouble(),
-            objectWidth: objectSize.width,
-            objectHeight: objectSize.height,
-            count: _adaptiveConfettiCount(),
-          ),
-        );
+        if (!ref.read(settingsViewModelProvider).settings.reduceEffects) {
+          _pendingConfettiBursts.add(
+            _ConfettiBurstRequest(
+              id: _nextConfettiBurstId++,
+              normalizedX: character.position.dx.clamp(0.08, 0.92).toDouble(),
+              normalizedY: character.position.dy.clamp(0.08, 0.92).toDouble(),
+              objectWidth: objectSize.width,
+              objectHeight: objectSize.height,
+              count: _adaptiveConfettiCount(),
+            ),
+          );
+        }
       }
     });
   }
@@ -180,6 +184,15 @@ class _StageScreenState extends ConsumerState<StageScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen<StageState>(stageViewModelProvider, _onStageStateChanged);
+    ref.listen(
+      settingsViewModelProvider.select((state) => state.settings.reduceEffects),
+      (_, reduced) {
+        if (reduced) _pendingConfettiBursts.clear();
+      },
+    );
+    final reduceEffects = ref.watch(
+      settingsViewModelProvider.select((state) => state.settings.reduceEffects),
+    );
     final state = ref.watch(stageViewModelProvider);
     final backgroundId = state.selectedBackground.id;
 
@@ -221,6 +234,7 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                       ? _EmptyStageHint()
                       : _PlacedCharactersStage(
                           placedCharacters: state.placedCharacters,
+                          reduceEffects: reduceEffects,
                           stageSize: constraints.biggest,
                           onInteraction: _showControlsForAWhile,
                           onBringToFront: (instanceId) {
@@ -268,12 +282,13 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                         ),
                 ),
               ),
-              Positioned.fill(
-                child: _ConfettiEffectOverlay(
-                  bursts: _pendingConfettiBursts,
-                  onBurstsCompleted: _handleConfettiBurstsConsumed,
+              if (!reduceEffects)
+                Positioned.fill(
+                  child: _ConfettiEffectOverlay(
+                    bursts: _pendingConfettiBursts,
+                    onBurstsCompleted: _handleConfettiBurstsConsumed,
+                  ),
                 ),
-              ),
               Positioned(
                 left: horizontalPadding,
                 right: horizontalPadding,
@@ -308,6 +323,20 @@ class _StageScreenState extends ConsumerState<StageScreen> {
                             style: IconButton.styleFrom(
                               minimumSize: const Size(40, 40),
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        DecoratedBox(
+                          decoration: overlayDecoration,
+                          child: IconButton(
+                            tooltip: '부모 설정',
+                            color: Colors.white,
+                            icon: const Icon(Icons.settings_outlined),
+                            onPressed: () async {
+                              _controlTimer?.cancel();
+                              await showParentSettings(context);
+                              if (mounted) _showControlsForAWhile();
+                            },
                           ),
                         ),
                         const Spacer(),
@@ -459,6 +488,7 @@ class _PlacedCharactersStage extends StatelessWidget {
     required this.onDelete,
     required this.onRemoveAnimationCompleted,
     required this.pendingEntranceInstanceIds,
+    required this.reduceEffects,
     required this.onEntranceCompleted,
   });
 
@@ -470,6 +500,7 @@ class _PlacedCharactersStage extends StatelessWidget {
   final Future<void> Function(String instanceId) onDelete;
   final ValueChanged<String> onRemoveAnimationCompleted;
   final Set<String> pendingEntranceInstanceIds;
+  final bool reduceEffects;
   final ValueChanged<String> onEntranceCompleted;
 
   @override
@@ -482,6 +513,7 @@ class _PlacedCharactersStage extends StatelessWidget {
           _InteractivePlacedCharacter(
             key: ValueKey(placed.instanceId),
             placed: placed,
+            reduceEffects: reduceEffects,
             stageSize: stageSize,
             onInteraction: onInteraction,
             onBringToFront: onBringToFront,
@@ -509,6 +541,7 @@ class _InteractivePlacedCharacter extends StatefulWidget {
     required this.onDelete,
     required this.onRemoveAnimationCompleted,
     required this.shouldPlayEntrance,
+    required this.reduceEffects,
     required this.onEntranceCompleted,
   });
 
@@ -520,6 +553,7 @@ class _InteractivePlacedCharacter extends StatefulWidget {
   final Future<void> Function(String instanceId) onDelete;
   final ValueChanged<String> onRemoveAnimationCompleted;
   final bool shouldPlayEntrance;
+  final bool reduceEffects;
   final ValueChanged<String> onEntranceCompleted;
 
   @override
@@ -557,6 +591,7 @@ class _InteractivePlacedCharacterState
   bool _hasCharacterImageReady = false;
   bool _entranceStarted = false;
   bool _entranceCompleted = false;
+  bool _reduceEntrance = false;
   bool _isRemoving = false;
   bool _removeCompletionNotified = false;
   double _removeTranslateXEnd = 0.0;
@@ -567,6 +602,7 @@ class _InteractivePlacedCharacterState
   void initState() {
     super.initState();
     _stageRuntime = widget.placed.stageRuntime;
+    _reduceEntrance = widget.reduceEffects;
     _glidePhaseOffset = _initialGlidePhaseOffset();
     _flutterPhaseOffset = _initialFlutterPhaseOffset();
 
@@ -706,6 +742,7 @@ class _InteractivePlacedCharacterState
       _hasCharacterImageReady = false;
       _entranceStarted = false;
       _entranceCompleted = false;
+      _reduceEntrance = widget.reduceEffects;
       _isRemoving = false;
       _removeCompletionNotified = false;
       _removeController.value = 0.0;
@@ -714,12 +751,21 @@ class _InteractivePlacedCharacterState
       _glidePhaseOffset = _initialGlidePhaseOffset();
       _flutterPhaseOffset = _initialFlutterPhaseOffset();
     }
-    if (!oldWidget.shouldPlayEntrance && widget.shouldPlayEntrance) {
-      _armEntranceIfNeeded(forceRestart: true);
-    }
+    if (widget.reduceEffects && !_entranceCompleted) _reduceEntrance = true;
+    // Removal wins over completing an entrance or enabling motion.
     if (!_isRemoving &&
         widget.placed.removalState == PlacedCharacterRemovalState.removing) {
       _beginRemoving();
+    }
+    if (!oldWidget.shouldPlayEntrance && widget.shouldPlayEntrance) {
+      _armEntranceIfNeeded(forceRestart: true);
+    }
+    if (widget.reduceEffects &&
+        !_entranceCompleted &&
+        !_isRemoving &&
+        _hasCharacterImageReady) {
+      _entryController.value = 1;
+      _finishEntrance();
     }
   }
 
@@ -827,16 +873,24 @@ class _InteractivePlacedCharacterState
     }
 
     _entranceStarted = true;
+    if (_reduceEntrance) {
+      _entryController.value = 1;
+      _finishEntrance();
+      return;
+    }
     _entryController.forward(from: 0.0).whenComplete(() {
-      if (!mounted || _entranceCompleted) {
-        return;
-      }
-      _entranceCompleted = true;
-      _isMotionActivated = true;
-      widget.onEntranceCompleted(widget.placed.instanceId);
-      if (!_isDragging) {
-        _startObjectMotionAnimation();
-      }
+      if (mounted) _finishEntrance();
+    });
+  }
+
+  void _finishEntrance() {
+    if (_entranceCompleted) return;
+    _entranceCompleted = true;
+    _isMotionActivated = !_isRemoving;
+    if (!_isRemoving && !_isDragging) _startObjectMotionAnimation();
+    // Image readiness and setting changes may arrive during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onEntranceCompleted(widget.placed.instanceId);
     });
   }
 
@@ -845,12 +899,11 @@ class _InteractivePlacedCharacterState
       return;
     }
     _hasCharacterImageReady = true;
-    if (_isRemoving) {
-      return;
-    }
-    if (widget.shouldPlayEntrance) {
-      _startEntranceAnimation();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isRemoving && widget.shouldPlayEntrance) {
+        _startEntranceAnimation();
+      }
+    });
   }
 
   void _beginRemoving() {
@@ -859,6 +912,7 @@ class _InteractivePlacedCharacterState
     }
 
     _isRemoving = true;
+    _finishEntrance();
     _isMotionActivated = false;
     _isDragging = false;
     _dragStartPosition = _stageRuntime.position;

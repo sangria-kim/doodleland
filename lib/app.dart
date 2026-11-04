@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'core/audio/stage_audio_controller.dart';
 import 'core/presentation/android_fullscreen_scope.dart';
 import 'core/theme/app_theme.dart';
+import 'core/settings/presentation/settings_viewmodel.dart';
 import 'router/app_router.dart';
 
 class DoodlelandApp extends ConsumerStatefulWidget {
@@ -16,13 +17,32 @@ class DoodlelandApp extends ConsumerStatefulWidget {
   ConsumerState<DoodlelandApp> createState() => _DoodlelandAppState();
 }
 
-class _DoodlelandAppState extends ConsumerState<DoodlelandApp> {
+class _DoodlelandAppState extends ConsumerState<DoodlelandApp>
+    with WidgetsBindingObserver {
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     _router = AppRouter.router;
+    ref.listenManual(
+      settingsViewModelProvider.select((state) => state.settings),
+      (_, settings) {
+        unawaited(
+          ref.read(stageAudioControllerProvider).applySettings(settings),
+        );
+      },
+      fireImmediately: true,
+    );
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    unawaited(
+      ref
+          .read(stageAudioControllerProvider)
+          .setForeground(
+            lifecycle == null || lifecycle == AppLifecycleState.resumed,
+          ),
+    );
     _router.routerDelegate.addListener(_syncAudioWithRoute);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncAudioWithRoute();
@@ -31,8 +51,18 @@ class _DoodlelandAppState extends ConsumerState<DoodlelandApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _router.routerDelegate.removeListener(_syncAudioWithRoute);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    unawaited(
+      ref
+          .read(stageAudioControllerProvider)
+          .setForeground(state == AppLifecycleState.resumed),
+    );
   }
 
   void _syncAudioWithRoute() {

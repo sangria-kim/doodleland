@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:doodleland/core/audio/stage_audio_controller.dart';
+import 'package:doodleland/core/settings/domain/play_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../test_helpers/fake_stage_audio.dart';
@@ -166,6 +167,7 @@ void main() {
         player.playGate!.complete();
         await Future.wait([playing, stopping]);
         expect(player.currentAsset, isNull);
+        if (leaveStage) await controller.syncRoutePath('/stage');
         await controller.syncBackgroundId('forest');
         expect(player.playedAssets.length, 2);
         expect(
@@ -286,7 +288,8 @@ void main() {
   test('cancels pending home entry voice when leaving home route', () async {
     final bgmPlayer = FakeStageBgmPlayer();
     final sfxPlayer = FakeStageSfxPlayer();
-    final voicePlayer = _DelayedStopVoicePlayer();
+    final voicePlayer = ControlledStageVoicePlayer()
+      ..stopGate = Completer<void>();
     final controller = StageAudioController(
       bgmPlayer: bgmPlayer,
       sfxPlayer: sfxPlayer,
@@ -297,7 +300,7 @@ void main() {
     controller.setHomeRouteForEntryVoice(true);
     final pendingVoicePlayback = controller.playHomeEntryVoice();
     controller.setHomeRouteForEntryVoice(false);
-    voicePlayer.completePendingStop();
+    voicePlayer.stopGate!.complete();
     await pendingVoicePlayback;
 
     expect(voicePlayer.playedAssets, isEmpty);
@@ -319,21 +322,215 @@ void main() {
     expect(sfxPlayer.disposeCount, equals(1));
     expect(voicePlayer.disposeCount, equals(1));
   });
-}
+  test(
+    'logical voice and effects are independent on the shared SFX player',
+    () async {
+      final sfx = ControlledStageSfxPlayer();
+      final voice = ControlledStageVoicePlayer();
+      final controller = StageAudioController(
+        bgmPlayer: FakeStageBgmPlayer(),
+        sfxPlayer: sfx,
+        voicePlayer: voice,
+      );
+      addTearDown(controller.dispose);
+      controller.setHomeRouteForEntryVoice(true);
+      await controller.applySettings(const PlaySettings(effectsEnabled: false));
+      await controller.playSpawnSfx();
+      await controller.playHomeCreateButtonSfx();
+      await controller.playHomeEntryVoice();
+      expect(sfx.currentAsset, contains('main_create_btn'));
+      expect(voice.currentAsset, isNotNull);
+      await controller.applySettings(const PlaySettings(voiceEnabled: false));
+      expect(sfx.currentAsset, isNull);
+      expect(voice.currentAsset, isNull);
+      await controller.playHomePlayButtonSfx();
+      await controller.playSpawnSfx();
+      expect(sfx.currentAsset, contains('sfx_spawn'));
+      await controller.applySettings(const PlaySettings());
+      expect(sfx.currentAsset, contains('sfx_spawn'));
+      expect(voice.currentAsset, isNull);
+      await controller.playHomePlayButtonSfx();
+      await controller.applySettings(const PlaySettings(effectsEnabled: false));
+      expect(sfx.currentAsset, contains('main_play_btn'));
+    },
+  );
 
-class _DelayedStopVoicePlayer extends FakeStageVoicePlayer {
-  Completer<void>? _pendingStopCompleter;
+  test(
+    'BGM remembers latest muted background and reevaluates the same id',
+    () async {
+      final bgm = ControlledStageBgmPlayer();
+      final controller = StageAudioController(
+        bgmPlayer: bgm,
+        sfxPlayer: FakeStageSfxPlayer(),
+        voicePlayer: FakeStageVoicePlayer(),
+      );
+      addTearDown(controller.dispose);
+      await controller.syncRoutePath('/stage');
+      await controller.syncBackgroundId('forest');
+      await controller.applySettings(const PlaySettings(musicEnabled: false));
+      expect(bgm.currentAsset, isNull);
+      await controller.applySettings(const PlaySettings());
+      expect(bgm.playedAssets.length, 2);
+      await controller.applySettings(const PlaySettings(musicEnabled: false));
+      await controller.syncBackgroundId('ocean');
+      await controller.applySettings(const PlaySettings());
+      expect(bgm.currentAsset, contains('ocean'));
+      await controller.syncRoutePath('/');
+      await controller.syncBackgroundId('sky');
+      expect(bgm.currentAsset, isNull);
+      await controller.syncRoutePath('/stage/background');
+      expect(bgm.currentAsset, contains('sky'));
+      await controller.syncBackgroundId('candy_land');
+      expect(bgm.currentAsset, isNull);
+    },
+  );
 
-  @override
-  Future<void> stop() {
-    final completer = Completer<void>();
-    _pendingStopCompleter ??= completer;
-    stopCount += 1;
-    return completer.future;
+  for (final beforePlay in [false, true]) {
+    for (final voiceCue in [false, true]) {
+      test(
+        'OFF invalidates ${voiceCue ? 'button voice' : 'effects'} during delayed ${beforePlay ? 'stop' : 'play'} and ON does not replay',
+        () async {
+          final player = ControlledStageSfxPlayer();
+          final gate = Completer<void>();
+          if (beforePlay) {
+            player.stopGate = gate;
+          } else {
+            player.playGate = gate;
+          }
+          final controller = StageAudioController(
+            bgmPlayer: FakeStageBgmPlayer(),
+            sfxPlayer: player,
+            voicePlayer: FakeStageVoicePlayer(),
+          );
+          addTearDown(controller.dispose);
+          final pending = voiceCue
+              ? controller.playHomeCreateButtonSfx()
+              : controller.playSpawnSfx();
+          await Future<void>.delayed(Duration.zero);
+          final off = controller.applySettings(
+            voiceCue
+                ? const PlaySettings(voiceEnabled: false)
+                : const PlaySettings(effectsEnabled: false),
+          );
+          final on = controller.applySettings(const PlaySettings());
+          gate.complete();
+          await Future.wait([pending, off, on]);
+          expect(player.currentAsset, isNull);
+          expect(player.playedAssets.length, beforePlay ? 0 : 1);
+          await controller.playRemoveSfx();
+          expect(player.currentAsset, contains('remove'));
+        },
+      );
+    }
   }
 
-  void completePendingStop() {
-    _pendingStopCompleter?.complete();
-    _pendingStopCompleter = null;
+  for (final interruption in ['mute', 'background', 'route', 'dispose']) {
+    test('late home voice play cannot survive $interruption', () async {
+      final voice = ControlledStageVoicePlayer()..playGate = Completer<void>();
+      final controller = StageAudioController(
+        bgmPlayer: FakeStageBgmPlayer(),
+        sfxPlayer: FakeStageSfxPlayer(),
+        voicePlayer: voice,
+      );
+      addTearDown(controller.dispose);
+      controller.setHomeRouteForEntryVoice(true);
+      final pending = controller.playHomeEntryVoice();
+      await Future<void>.delayed(Duration.zero);
+      final cancel = switch (interruption) {
+        'mute' => controller.applySettings(
+          const PlaySettings(voiceEnabled: false),
+        ),
+        'background' => controller.setForeground(false),
+        'route' => controller.syncRoutePath('/library'),
+        _ => controller.dispose(),
+      };
+      voice.playGate!.complete();
+      await Future.wait([pending, cancel]);
+      expect(voice.currentAsset, isNull);
+    });
   }
+
+  test(
+    'background invalidates delayed SFX and resume only restores current BGM',
+    () async {
+      final sfx = ControlledStageSfxPlayer()..playGate = Completer<void>();
+      final bgm = ControlledStageBgmPlayer();
+      final voice = ControlledStageVoicePlayer();
+      final controller = StageAudioController(
+        bgmPlayer: bgm,
+        sfxPlayer: sfx,
+        voicePlayer: voice,
+      );
+      addTearDown(controller.dispose);
+      await controller.syncBackgroundId('forest');
+      final cue = controller.playHomePlayButtonSfx();
+      await Future<void>.delayed(Duration.zero);
+      final background = controller.setForeground(false);
+      await controller.setForeground(false);
+      await controller.syncBackgroundId('sky');
+      final mute = controller.applySettings(
+        const PlaySettings(voiceEnabled: false),
+      );
+      sfx.playGate!.complete();
+      await Future.wait([cue, background, mute]);
+      expect(sfx.currentAsset, isNull);
+      expect(bgm.currentAsset, isNull);
+      await controller.setForeground(true);
+      expect(bgm.currentAsset, contains('sky'));
+      expect(sfx.playedAssets.length, 1);
+      expect(voice.playedAssets, isEmpty);
+    },
+  );
+
+  test(
+    'SFX failure does not poison queue and dispose waits for pending play',
+    () async {
+      final player = ControlledStageSfxPlayer()..failNextPlay = true;
+      final controller = StageAudioController(
+        bgmPlayer: FakeStageBgmPlayer(),
+        sfxPlayer: player,
+        voicePlayer: FakeStageVoicePlayer(),
+      );
+      await controller.playSpawnSfx();
+      await controller.playRemoveSfx();
+      expect(player.currentAsset, contains('remove'));
+      player.playGate = Completer<void>();
+      final pending = controller.playHomePlayButtonSfx();
+      await Future<void>.delayed(Duration.zero);
+      final disposing = controller.dispose();
+      expect(player.disposeCount, 0);
+      player.playGate!.complete();
+      await Future.wait([pending, disposing]);
+      expect(player.currentAsset, isNull);
+      expect(player.disposeCount, 1);
+    },
+  );
+
+  test(
+    'mute during delayed BGM play settles stopped then resumes latest route only',
+    () async {
+      final player = ControlledStageBgmPlayer()..playGate = Completer<void>();
+      final controller = StageAudioController(
+        bgmPlayer: player,
+        sfxPlayer: FakeStageSfxPlayer(),
+        voicePlayer: FakeStageVoicePlayer(),
+      );
+      addTearDown(controller.dispose);
+      final started = player.playStarted.stream.first;
+      final pending = controller.syncBackgroundId('forest');
+      await started;
+      final off = controller.applySettings(
+        const PlaySettings(musicEnabled: false),
+      );
+      final background = controller.syncBackgroundId('sky');
+      final on = controller.applySettings(const PlaySettings());
+      final exit = controller.syncRoutePath('/');
+      player.playGate!.complete();
+      await Future.wait([pending, off, background, on, exit]);
+      expect(player.currentAsset, isNull);
+      expect(player.playedAssets.length, 1);
+      await controller.syncRoutePath('/stage');
+      expect(player.currentAsset, contains('sky'));
+    },
+  );
 }

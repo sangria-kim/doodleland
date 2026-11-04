@@ -1,5 +1,6 @@
 import 'package:doodleland/core/database/app_database.dart';
 import 'package:doodleland/core/audio/stage_audio_controller.dart';
+import 'package:doodleland/core/presentation/menu_action_button.dart';
 import 'package:doodleland/feature/home/presentation/home_screen.dart';
 import 'package:doodleland/feature/library/data/character_repository.dart';
 import 'package:doodleland/router/app_router.dart';
@@ -238,7 +239,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final menuButtons = find.byType(InkWell);
+    final menuButtons = find.descendant(
+      of: find.byType(MenuActionButton),
+      matching: find.byType(InkWell),
+    );
     expect(menuButtons, findsNWidgets(3));
 
     final menuRenderBoxes = menuButtons

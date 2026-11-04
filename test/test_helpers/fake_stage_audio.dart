@@ -123,3 +123,58 @@ class ControlledStageBgmPlayer extends FakeStageBgmPlayer {
     await super.dispose();
   }
 }
+
+class ControlledStageSfxPlayer extends FakeStageSfxPlayer {
+  Completer<void>? stopGate;
+  Completer<void>? playGate;
+  bool failNextPlay = false;
+  String? currentAsset;
+  @override
+  Future<void> stop() async {
+    stopCount++;
+    await stopGate?.future;
+    currentAsset = null;
+  }
+
+  @override
+  Future<void> playAsset(String assetPath) async {
+    playedAssets.add(assetPath);
+    await playGate?.future;
+    if (failNextPlay) {
+      failNextPlay = false;
+      throw StateError('play failed');
+    }
+    currentAsset = assetPath;
+  }
+
+  @override
+  Future<void> dispose() async {
+    currentAsset = null;
+    await super.dispose();
+  }
+}
+
+class ControlledStageVoicePlayer extends FakeStageVoicePlayer {
+  Completer<void>? stopGate;
+  Completer<void>? playGate;
+  String? currentAsset;
+  @override
+  Future<void> stop() async {
+    stopCount++;
+    await stopGate?.future;
+    currentAsset = null;
+  }
+
+  @override
+  Future<void> playAsset(String assetPath) async {
+    playedAssets.add(assetPath);
+    await playGate?.future;
+    currentAsset = assetPath;
+  }
+
+  @override
+  Future<void> dispose() async {
+    currentAsset = null;
+    await super.dispose();
+  }
+}

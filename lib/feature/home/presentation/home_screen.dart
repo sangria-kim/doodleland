@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/audio/stage_audio_controller.dart';
 import '../../../core/presentation/menu_action_button.dart';
+import '../../../core/settings/presentation/settings_viewmodel.dart';
+import '../../settings/presentation/parent_settings_dialog.dart';
 import '../../../router/app_router.dart';
 import '../../library/presentation/library_viewmodel.dart';
 
@@ -100,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
     );
 
-    _controller.forward();
+    _startDecoration();
     _scheduleHomeEntryVoicePlayback();
   }
 
@@ -128,8 +130,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didPopNext() {
-    _controller.forward(from: 0);
+    _startDecoration();
     _scheduleHomeEntryVoicePlayback();
+  }
+
+  void _startDecoration() {
+    if (ref.read(settingsViewModelProvider).settings.reduceEffects) {
+      _controller.value = 1;
+    } else {
+      _controller.forward(from: 0);
+    }
   }
 
   void _scheduleHomeEntryVoicePlayback() {
@@ -153,6 +163,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      settingsViewModelProvider.select((state) => state.settings.reduceEffects),
+      (_, reduced) {
+        if (reduced) _controller.value = 1;
+      },
+    );
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -213,6 +229,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           key: const Key('home-bg-title'),
                           fit: BoxFit.cover,
                         ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: SafeArea(
+                      child: IconButton(
+                        tooltip: '부모 설정',
+                        icon: const Icon(Icons.settings_outlined),
+                        onPressed: () => showParentSettings(context),
                       ),
                     ),
                   ),
